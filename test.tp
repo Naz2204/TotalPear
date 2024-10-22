@@ -1,0 +1,19 @@
+int a = 1;
+print("Result: ", a);
+
+int i = 0;
+for (i = 1; i < 44; i = i + 1) {
+    print(i);
+}
+
+
+int a = 16;
+// some code
+int even = a / 2;
+even = a - even * 2;
+if [#is_even: even == 0; #is_odd: true] #is_even: {
+    print("a is even");
+}
+#is_odd: {
+    print("a is odd");
+}
