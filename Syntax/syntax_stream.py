@@ -42,6 +42,8 @@ class Syntax_input:
         if self.__table_iterator - amount  :
         self.__table_iterator -= amount
 
+    def get_current_token_number(self) -> int:
+        return self.__table_iterator
 
     def get_line (self) -> int:
         return self.__line

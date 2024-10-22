@@ -88,21 +88,78 @@ class Syntax:
             self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
             return True
 
-        if not self.__expression():
-            # if expression is false - then first value was incorrect
-            self.__output.print_lexeme_error(self.__stream.get_line())
+        self.__expression()
 
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
         return True
 
+    #  --------------------- expression ---------------------
     def __expression(self) -> bool:
+        # error check is inside
         self.__output.print_parse_function("expression():")
 
     def __logical_expression(self) -> bool:
         self.__output.print_parse_function("logical_expression():")
 
-    def __math_expression(self) -> bool:
-        self.__output.print_parse_function("math_expression():")
+    def __math_polynomial(self) -> bool:
+        self.__output.print_parse_function("math_polynomial():")
+        if not self.__math_monomial():
+            return False
+
+        token = self.__stream.get_token()
+        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
+            if not self.__math_monomial():
+                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
+                              CONSOLE_COLORS.ERROR)
+                exit(1)
+        self.__stream.unget(1)
+        return True
+
+    def __math_monomial(self) -> bool:
+        self.__output.print_parse_function("math_monomial():")
+        if not self.__math_monomial():
+            return False
+
+        token = self.__stream.get_token()
+        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
+            if not self.__math_monomial():
+                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
+                              CONSOLE_COLORS.ERROR)
+                exit(1)
+        self.__stream.unget(1)
+        return True
+
+    def __math_primary1(self) -> bool:
+        self.__output.print_parse_function("math_monomial():")
+        if not self.__math_primary2():
+            return False
+
+        token = self.__stream.get_token()
+        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
+            if not self.__math_primary2():
+                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
+                              CONSOLE_COLORS.ERROR)
+                exit(1)
+        self.__stream.unget(1)
+        return True
+
+    def __math_primary2(self) -> bool:
+        self.__output.print_parse_function("math_monomial():")
+        if not self.__math_primary2():
+            return False
+
+        token = self.__stream.get_token()
+        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
+            if not self.__math_primary2():
+                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
+                              CONSOLE_COLORS.ERROR)
+                exit(1)
+        self.__stream.unget(1)
+        return True
+
+    def __math_primary3(self) -> bool: pass
+
+    #  --------------------- --- ---------------------
 
     def __assign(self) -> bool:
         if not self.__assign_statement():
@@ -122,11 +179,8 @@ class Syntax:
         if self.__input_statement():
             self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
             return True
-
-        elif not self.__expression():
-            # if expression is false - then first value was incorrect
-            self.__output.print_lexeme_error(self.__stream.get_line())
-            exit(1)
+        else:
+            self.__expression()
         return True
 
     def __print(self) -> bool:
@@ -163,10 +217,7 @@ class Syntax:
             return True
 
         self.__stream.unget(1)
-        if not self.__expression():
-            # if expression is false - then first value was incorrect
-            self.__output.print_lexeme_error(self.__stream.get_line())
-            exit(1)
+        self.__expression()
         return True
 
     def __input_statement(self) -> bool:
@@ -305,7 +356,7 @@ class Syntax:
             self.__stream.unget(1)
             return False
 
-        if not self.__math_expression():
+        if not self.__math_polynomial():
             # if math_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
@@ -360,10 +411,19 @@ class Syntax:
             self.__stream.unget(1)
             return False
 
+        self.__flag_list()
+
+        at_least_once: bool = self.__flag_body()
+        if not at_least_once:
+            print_console(f"Error -> TP syntax (Runtime): no flag body in flagIf, on line {self.__stream.get_line()}", CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        while self.__flag_body(): pass
 
         return True
 
     def __flag_list(self) -> bool:
+        # error check is inside
         self.__check_expected_token(TOKEN_TYPES.SQUARE_L)
         at_least_once: bool = self.__flag_declare()
         if not at_least_once:
@@ -375,7 +435,7 @@ class Syntax:
         while token == TOKEN_TYPES.PARAM_SEPARATOR:
             if not self.__flag_declare():
                 print_console(
-                    f"Error -> TP syntax (Runtime): no flag declaration in flagIf, on line {self.__stream.get_line()}",
+                    f"Error -> TP syntax (Runtime): no flag declaration after coma, on line {self.__stream.get_line()}",
                     CONSOLE_COLORS.ERROR)
                 exit(1)
 
@@ -383,6 +443,7 @@ class Syntax:
         self.__stream.unget(1)
 
         self.__check_expected_token(TOKEN_TYPES.SQUARE_R)
+        return True
 
     def __flag_declare(self) -> bool:
         if not self.__flag():
@@ -404,9 +465,12 @@ class Syntax:
         self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
         return True
 
-
-    def __conditional_body(self) -> bool:
-        pass
+    def __flag_body(self) -> bool:
+        if not self.__flag():
+            return False
+        self.__check_expected_token(TOKEN_TYPES.COLON)
+        self.__body()
+        return True
 
 
 def process_start_args() -> str | None:
