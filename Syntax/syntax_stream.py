@@ -38,6 +38,7 @@ class Syntax_input:
             exit(1)
 
     def unget(self, amount: int) -> None:
+        # FIXME update line counter
         if self.__table_iterator - amount  :
         self.__table_iterator -= amount
 

@@ -5,7 +5,7 @@ from syntax_consts import *
 import sys
 import os
 
-# TODO: check returns and ungets and exits add identation
+# TODO: check returns and ungets and exits add identation, update print_consol to some syntax_print
 
 class Syntax:
     def __init__(self, stream: Syntax_input, output: Syntax_print):
@@ -100,6 +100,9 @@ class Syntax:
 
     def __logical_expression(self) -> bool:
         self.__output.print_parse_function("logical_expression():")
+
+    def __math_expression(self) -> bool:
+        self.__output.print_parse_function("math_expression():")
 
     def __assign(self) -> bool:
         if not self.__assign_statement():
@@ -209,8 +212,14 @@ class Syntax:
         self.__output.print_parse_function("cycle_while():")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.WHILE:
-              self.__stream.unget(1)
-              return False
+            self.__stream.unget(1)
+            return False
+
+        if not self.__logical_expression():
+            # if logical_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
         self.__body()
         return True
 
@@ -251,13 +260,150 @@ class Syntax:
         if token[1] != KEYWORDS.IF:
             self.__stream.unget(1)
             return False
-        
-    def __conditional_flags(self) -> bool:
-        self.__output.print_parse_function("conditional_flags():")
+
+        if not self.__logical_expression():
+            # if logical_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__body()
+
+        # false when no first keyword (elif/else) - error checker after this is strict
+        while self.__elif(): pass
+        self.__else()
+        return True
+
+    def __elif(self) -> bool:
+        self.__output.print_parse_function("conditional_elif():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.ELIF:
+            self.__stream.unget(1)
+            return False
+
+        if not self.__logical_expression():
+            # if logical_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__body()
+        return True
+
+    def __else(self) -> bool:
+        self.__output.print_parse_function("conditional_else():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.ELSE:
+            self.__stream.unget(1)
+            return False
+
+        self.__body()
+        return True
 
     def __conditional_switch(self) -> bool:
         self.__output.print_parse_function("conditional_switch():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.SWITCH:
+            self.__stream.unget(1)
+            return False
 
+        if not self.__math_expression():
+            # if math_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__check_expected_token(TOKEN_TYPES.CURVE_L)
+
+        at_least_once: bool = self.__case()
+        if not at_least_once:
+            print_console(f"Error -> TP syntax (Runtime): no case in switch, on line {self.__stream.get_line()}", CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        while self.__case(): pass
+
+        self.__default()
+
+        self.__check_expected_token(TOKEN_TYPES.CURVE_R)
+
+        return True
+
+    def __case(self) -> bool:
+        self.__output.print_parse_function("case():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.CASE:
+            self.__stream.unget(1)
+            return False
+
+        token = self.__stream.get_token()
+        if token[1] != TOKEN_TYPES.OP_MINUS:
+            self.__stream.unget(1)
+
+        self.__check_expected_token([VALUE_TYPES.INT, VALUE_TYPES.FLOAT])
+        self.__check_expected_token(TOKEN_TYPES.COLON)
+
+        self.__body()
+        return True
+
+    def __default(self) -> bool:
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.DEFAULT:
+            self.__stream.unget(1)
+            return False
+
+        self.__check_expected_token(TOKEN_TYPES.COLON)
+
+        self.__body()
+        return True
+
+    def __conditional_flags(self) -> bool:
+        self.__output.print_parse_function("conditional_flags():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.FLAG_IF:
+            self.__stream.unget(1)
+            return False
+
+
+        return True
+
+    def __flag_list(self) -> bool:
+        self.__check_expected_token(TOKEN_TYPES.SQUARE_L)
+        at_least_once: bool = self.__flag_declare()
+        if not at_least_once:
+            print_console(f"Error -> TP syntax (Runtime): no flag declaration in flagIf, on line {self.__stream.get_line()}",
+                          CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        token = self.__stream.get_token()
+        while token == TOKEN_TYPES.PARAM_SEPARATOR:
+            if not self.__flag_declare():
+                print_console()
+
+            token = self.__stream.get_token()
+        self.__stream.unget(1)
+
+        self.__check_expected_token(TOKEN_TYPES.SQUARE_R)
+
+    def __flag_declare(self) -> bool:
+        if not self.__flag():
+            return False
+        self.__check_expected_token(TOKEN_TYPES.COLON)
+        if not self.__logical_expression():
+            # if logical_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        return True
+
+    def __flag(self) -> bool:
+        token = self.__stream.get_token()
+        if token[1] != TOKEN_TYPES.FLAG:
+            self.__stream.unget(1)
+            return False
+
+        self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
+        return True
+
+
+    def __conditional_body(self) -> bool:
+        pass
 
 
 def process_start_args() -> str | None:

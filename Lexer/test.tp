@@ -1,4 +1,4 @@
-int a = 1;
+int a = -1;
 print("Result: ", a);
 
 int i = 0;
