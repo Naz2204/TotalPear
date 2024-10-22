@@ -374,7 +374,10 @@ class Syntax:
         token = self.__stream.get_token()
         while token == TOKEN_TYPES.PARAM_SEPARATOR:
             if not self.__flag_declare():
-                print_console()
+                print_console(
+                    f"Error -> TP syntax (Runtime): no flag declaration in flagIf, on line {self.__stream.get_line()}",
+                    CONSOLE_COLORS.ERROR)
+                exit(1)
 
             token = self.__stream.get_token()
         self.__stream.unget(1)
