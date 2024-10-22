@@ -5,45 +5,260 @@ from syntax_consts import *
 import sys
 import os
 
+# TODO: check returns and ungets and exits add identation
+
 class Syntax:
     def __init__(self, stream: Syntax_input, output: Syntax_print):
-        self.stream = stream
-        self.output = output
+        self.__stream = stream
+        self.__output = output
 
     def run(self):
-        self.program()
+        self.__statement_list()
+
+    def __check_expected_token(self, expected_tokens: list[KEYWORDS | TOKEN_TYPES | VALUE_TYPES] | KEYWORDS | TOKEN_TYPES | VALUE_TYPES) -> bool:
+        token = self.__stream.get_token()
+        if token is None:
+            self.__output.print_incorrect_found_error(None, expected_tokens, self.__stream.get_line())
+            exit(1)
+
+        if token[1] in expected_tokens:
+            return True
+        self.__output.print_incorrect_found_error(token, expected_tokens, self.__stream.get_line())
+        exit(1)
+
+    #  --------------------- statements ---------------------
+    def __statement_list(self) -> bool:
+        self.__output.print_parse_function("statement_list():")
+        at_least_one: bool = self.__statement_line()
+        if not at_least_one:
+            print_console("Error -> TP syntax (Runtime): empty program", CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        while self.__statement_line():
+            pass
+
+        return True
+
+    def __statement_line(self) -> bool:
+        self.__output.print_parse_function("statement_line():")
+
+        if self.__statement_local() or self.__init_declare():
+            return True
+
+        if self.__stream.is_empty():
+            return True
+
+        # file not empty
+        self.__output.print_incorrect_found_error(self.__stream.get_token(),  [
+            KEYWORDS.FLOAT,       KEYWORDS.INT,        KEYWORDS.BOOL, KEYWORDS.PRINT, KEYWORDS.INPUT_INT,
+            KEYWORDS.INPUT_FLOAT, KEYWORDS.INPUT_BOOL, KEYWORDS.IF,   KEYWORDS.WHILE, KEYWORDS.DO,
+            KEYWORDS.FOR,         KEYWORDS.SWITCH,     KEYWORDS.FLAG_IF,
+            VALUE_TYPES.IDENTIFIER
+        ], self.__stream.get_line())
+        exit(1)
+
+    def __statement_local(self) -> bool:
+        self.__output.print_parse_function("statement_local():")
+
+        return (self.__assign()            or  self.__print()               or
+                self.__cycle_do()          or  self.__cycle_for()           or
+                self.__cycle_while()       or  self.__conditional_if()      or
+                self.__conditional_flags() or  self.__conditional_switch())
+
+    #  --------------------- variable ---------------------
+
+    def __init_declare(self) -> bool:
+        self.__output.print_parse_function("init_declare():")
+        token = self.__stream.get_token()
+        if token[1] not in (KEYWORDS.FLOAT, KEYWORDS.INT, KEYWORDS.BOOL):
+            self.__stream.unget(1)
+            return False
+
+        self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
+
+        # -- check declaration
+        token = self.__stream.get_token()
+        if token[1] == TOKEN_TYPES.END_STATEMENT:
+            return True  # declaration
+        self.__stream.unget(1)
+
+        self.__check_expected_token(TOKEN_TYPES.OP_ASSIGN)
+
+        if self.__input_statement():
+            self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+            return True
+
+        if not self.__expression():
+            # if expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+
+        self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        return True
+
+    def __expression(self) -> bool:
+        self.__output.print_parse_function("expression():")
+
+    def __logical_expression(self) -> bool:
+        self.__output.print_parse_function("logical_expression():")
+
+    def __assign(self) -> bool:
+        if not self.__assign_statement():
+            return False
+        self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        return True
+
+    def __assign_statement(self) -> bool:
+        self.__output.print_parse_function("assign():")
+        token = self.__stream.get_token()
+        if token[1] != VALUE_TYPES.IDENTIFIER:
+            self.__stream.unget(1)
+            return False
+
+        self.__check_expected_token(TOKEN_TYPES.OP_ASSIGN)
+
+        if self.__input_statement():
+            self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+            return True
+
+        elif not self.__expression():
+            # if expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+        return True
+
+    def __print(self) -> bool:
+        self.__output.print_parse_function("print():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.PRINT:
+            self.__stream.unget(1)
+            return False
+        self.__check_expected_token(TOKEN_TYPES.BRACKET_L)
+        if not self.__print_list():
+            # if print list is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+        self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        return True
+
+    def __print_list(self) -> bool:
+        self.__output.print_parse_function("print_list():")
+        self.__printable() # error check is inside
+
+        token = self.__stream.get_token()
+        while token == TOKEN_TYPES.PARAM_SEPARATOR:
+            self.__printable()
+            token = self.__stream.get_token()
+        self.__stream.unget(1)
+        return True
+
+    def __printable(self) -> bool:
+        # error check is inside
+        token = self.__stream.get_token()
+        if token[1] == VALUE_TYPES.STRING:
+            return True
+
+        self.__stream.unget(1)
+        if not self.__expression():
+            # if expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+        return True
+
+    def __input_statement(self) -> bool:
+        self.__output.print_parse_function("input_statement():")
+        token = self.__stream.get_token()
+        if token not in [KEYWORDS.INPUT_INT, KEYWORDS.INPUT_FLOAT, KEYWORDS.INPUT_BOOL]:
+            self.__stream.unget(1)
+            return False
+
+        self.__check_expected_token(TOKEN_TYPES.BRACKET_L)
+        token = self.__stream.get_token()
+        if token != VALUE_TYPES.STRING:
+            self.__stream.unget(1)
+        self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+
+        return True
+
+    def __body(self) -> bool:
+        # error check is inside
+        self.__check_expected_token(TOKEN_TYPES.CURVE_L)
+        while self.__statement_local(): pass
+        self.__check_expected_token(TOKEN_TYPES.CURVE_R)
+        return True
+
+    def __cycle_do(self) -> bool:
+        self.__output.print_parse_function("cycle_do():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.DO:
+              self.__stream.unget(1)
+              return False
+        self.__body()
+        self.__check_expected_token(KEYWORDS.WHILE)
+
+        if not self.__logical_expression():
+            # if logical_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        return True
+
+    def __cycle_while(self) -> bool:
+        self.__output.print_parse_function("cycle_while():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.WHILE:
+              self.__stream.unget(1)
+              return False
+        self.__body()
+        return True
+
+    def __cycle_for(self) -> bool:
+        self.__output.print_parse_function("cycle_for():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.FOR:
+            self.__stream.unget(1)
+            return False
+
+        self.__check_expected_token(TOKEN_TYPES.BRACKET_L)
+        if not self.__assign_statement():
+            # if assign_statement is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        if not self.__logical_expression():
+            # if logical_expression is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+
+        if not self.__assign_statement():
+            # if assign_statement is false - then first value was incorrect
+            self.__output.print_lexeme_error(self.__stream.get_line())
+            exit(1)
+
+        self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+
+        self.__body()
+        return True
+
+    def __conditional_if(self) -> bool:
+        self.__output.print_parse_function("conditional_if():")
+        token = self.__stream.get_token()
+        if token[1] != KEYWORDS.IF:
+            self.__stream.unget(1)
+            return False
+        
+    def __conditional_flags(self) -> bool:
+        self.__output.print_parse_function("conditional_flags():")
+
+    def __conditional_switch(self) -> bool:
+        self.__output.print_parse_function("conditional_switch():")
 
 
-    def check_token(self):
-        """
-            Check for expected token
-        """
-        pass
-
-    def program(self): pass
-
-    #  --- variable ---
-    def declaration(self) -> bool: pass
-
-    def initialization(self) -> bool: pass
-
-    def assign(self) -> bool: pass
-
-    def print(self) -> bool: pass
-
-    def input(self) -> bool: pass
-
-    def cycle_while(self) -> bool: pass
-
-    def cycle_for(self) -> bool: pass
-
-    def cycle_do(self) -> bool: pass
-
-    def conditional_flags(self) -> bool: pass
-
-    def conditional_switch(self) -> bool: pass
-
-    def conditional_if(self) -> bool: pass
 
 def process_start_args() -> str | None:
     """
