@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Lexer.iml" filepath="$PROJECT_DIR$/.idea/Lexer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/TotalPear.iml" filepath="$PROJECT_DIR$/.idea/TotalPear.iml" />
     </modules>
   </component>
 </project>
