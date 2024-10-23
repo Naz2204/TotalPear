@@ -91,7 +91,7 @@ REGEX_TO_CLASS_ALPHABET = {
     r"\"":                     CLASS_ALPHABET.QUOTE,
     r"/":                      CLASS_ALPHABET.FORWARD_SLASH,
     r"\n":                     CLASS_ALPHABET.NEW_LINE,
-    r"[,()\[\]{}#+\-*=\^:;]":  CLASS_ALPHABET.SPECIAL_SIGN_SINGLE,
+    r"[,()\[\]{}#+\-*\^:;]":  CLASS_ALPHABET.SPECIAL_SIGN_SINGLE,
     r"[<>]":                   CLASS_ALPHABET.LESS_MORE,
     r"=":                      CLASS_ALPHABET.EQUAL_SIGN,
     r"!":                      CLASS_ALPHABET.EXCLAMATION_MARK,

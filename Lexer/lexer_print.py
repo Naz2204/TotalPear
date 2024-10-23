@@ -1,5 +1,5 @@
 from typing import Any
-from lexer_consts import *
+from Lexer.lexer_consts import *
 
 def print_table(table: list[list[Any]] | list[tuple[Any]]):
     if len(table) == 0:    return

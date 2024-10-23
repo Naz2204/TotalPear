@@ -1,7 +1,7 @@
 import sys
 import re
-from lexer_tables import *
-from lexer_stream import *
+from Lexer.lexer_tables import *
+from Lexer.lexer_stream import *
 import json
 
 
