@@ -36,6 +36,7 @@ class Syntax:
 
         while self.__statement_line(): pass
 
+
         self.__output.accept_print_function()
         return True
 
@@ -45,10 +46,12 @@ class Syntax:
         if self.__stream.is_empty():
             # TODO: check for remove?
 
+            self.__output.discard_print_function()
             return False
 
         if self.__statement_local() or self.__init_declare():
 
+            self.__output.accept_print_function()
             return True
 
         # file not empty
@@ -59,6 +62,7 @@ class Syntax:
             VALUE_TYPES.IDENTIFIER
         ], self.__stream.get_line())
         exit(1)
+        # self.__output.discard_print_function()()
         # return False
 
     def __statement_local(self) -> bool:
@@ -68,6 +72,11 @@ class Syntax:
                   self.__cycle_do()          or  self.__cycle_for()           or
                   self.__cycle_while()       or  self.__conditional_if()      or
                   self.__conditional_flags() or  self.__conditional_switch())
+        if is_ok:
+            self.__output.accept_print_function()
+        else:
+            self.__output.discard_print_function()
+
         return is_ok
 
     #  --------------------- variable ---------------------
@@ -77,6 +86,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] not in (KEYWORDS.FLOAT, KEYWORDS.INT, KEYWORDS.BOOL):
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
 
@@ -85,6 +95,7 @@ class Syntax:
         # -- check declaration
         token = self.__stream.get_token()
         if token[1] == TOKEN_TYPES.END_STATEMENT:
+            self.__output.accept_print_function()
             return True  # declaration
         self.__stream.unget(1)
 
@@ -92,11 +103,13 @@ class Syntax:
 
         if self.__input_statement():
             self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+            self.__output.accept_print_function()
             return True
 
         self.__expression()
 
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__output.accept_print_function()
         return True
 
     #  --------------------- expression ---------------------
@@ -111,6 +124,7 @@ class Syntax:
             if token[1] not in [TOKEN_TYPES.OP_EQUAL, TOKEN_TYPES.OP_NOT_EQUAL, TOKEN_TYPES.OP_BIGGER_EQUAL,
                                 TOKEN_TYPES.OP_LESS_EQUAL, TOKEN_TYPES.OP_LESS, TOKEN_TYPES.OP_BIGGER]:
                 self.__stream.unget(1)
+                self.__output.accept_print_function()
                 return True
 
         end_read = self.__stream.get_current_token_number()
@@ -120,11 +134,13 @@ class Syntax:
                 f"Error -> TP syntax (Runtime): no expression on line {self.__stream.get_line()}",
                 CONSOLE_COLORS.ERROR)
             exit(1)
+        self.__output.accept_print_function()
         return True
 
     def __logical_expression(self) -> bool:
         self.__output.prepare_print_function("logical_expression")
         if not self.__logical2():
+            self.__output.discard_print_function()
             return False
 
 
@@ -135,11 +151,13 @@ class Syntax:
                               CONSOLE_COLORS.ERROR)
                 exit(1)
         self.__stream.unget(1)
+        self.__output.accept_print_function()
         return True
 
     def __logical2(self) -> bool:
         self.__output.prepare_print_function("logical2")
         if not self.__logical3():
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
@@ -150,6 +168,7 @@ class Syntax:
                 exit(1)
         self.__stream.unget(1)
 
+        self.__output.accept_print_function()
         return True
 
     def __logical3(self) -> bool:
@@ -163,6 +182,7 @@ class Syntax:
 
         is_value_ok = self.__logical4()
         if not is_value_ok and not there_is_not:
+            self.__output.discard_print_function()
             return False
 
         if not is_value_ok and there_is_not:
@@ -171,27 +191,33 @@ class Syntax:
                 CONSOLE_COLORS.ERROR)
             exit(1)
 
+        self.__output.accept_print_function()
         return True
 
     def __logical4(self) -> bool:
         self.__output.prepare_print_function("logical4")
         # FIX: ADD Comparison
         # if self.__comparison(): # must be before bracket and logical value - because it can be start of it
+        #     self.__output.accept_print_function(()
         #     return True
 
         token = self.__stream.get_token()
         if token[1] == TOKEN_TYPES.BRACKET_L:
             if not self.__logical_expression():
                 self.__stream.unget(1)
+                self.__output.discard_print_function()
                 return False
             self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+            self.__output.accept_print_function()
             return True
 
         if token[1] in [VALUE_TYPES.BOOL, VALUE_TYPES.IDENTIFIER]:
+            self.__output.accept_print_function()
             return True
         else:
             self.__stream.unget(1)
         
+        self.__output.discard_print_function()
         return False
 
     def __comparison(self) -> bool: pass
@@ -201,6 +227,7 @@ class Syntax:
     def __math_polynomial(self) -> bool:
         self.__output.prepare_print_function("math_polynomial")
         if not self.__math_monomial():
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
@@ -212,12 +239,14 @@ class Syntax:
             token = self.__stream.get_token()
 
         self.__stream.unget(1)
+        self.__output.accept_print_function()
         return True
 
     def __math_monomial(self) -> bool:
         # ceil error checker for other math that is lower in recursion
         self.__output.prepare_print_function("math_monomial")
         if not self.__math_primary1():
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
@@ -228,6 +257,7 @@ class Syntax:
                 exit(1)
             token = self.__stream.get_token()
         self.__stream.unget(1)
+        self.__output.accept_print_function()
         return True
 
     def __math_primary1(self) -> bool:
@@ -242,6 +272,7 @@ class Syntax:
         is_value_ok = self.__math_primary2()
 
         if not is_value_ok and not there_is_minus:
+            self.__output.discard_print_function()
             return False
 
         if not is_value_ok and there_is_minus:
@@ -250,11 +281,13 @@ class Syntax:
                 CONSOLE_COLORS.ERROR)
             exit(1)
 
+        self.__output.accept_print_function()
         return True
 
     def __math_primary2(self) -> bool:
         self.__output.prepare_print_function("math_primary2")
         if not self.__math_primary3():
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
@@ -268,6 +301,7 @@ class Syntax:
         else: # not power
             self.__stream.unget(1)
 
+        self.__output.accept_print_function()
         return True
 
     def __math_primary3(self) -> bool:
@@ -277,14 +311,18 @@ class Syntax:
         if token[1] == TOKEN_TYPES.BRACKET_L:
             if not self.__math_polynomial():
                 self.__stream.unget(1)
+                self.__output.discard_print_function()
                 return False
             self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+            self.__output.accept_print_function()
             return True
 
         if token[1] not in [VALUE_TYPES.INT, VALUE_TYPES.FLOAT, VALUE_TYPES.IDENTIFIER]:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
+        self.__output.accept_print_function()
         return True
 
 
@@ -292,26 +330,32 @@ class Syntax:
     #  --------------------- --- ---------------------
 
     def __assign(self) -> bool:
+        self.__output.prepare_print_function("assign")
         if not self.__assign_statement():
+            self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__output.accept_print_function()
         return True
 
     def __assign_statement(self) -> bool:
-        self.__output.prepare_print_function("assign")
+        self.__output.prepare_print_function("assign_statement")
         token = self.__stream.get_token()
 
         if token[1] != VALUE_TYPES.IDENTIFIER:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__check_expected_token(TOKEN_TYPES.OP_ASSIGN)
 
         if self.__input_statement():
             self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+            self.__output.accept_print_function()
             return True
         else:
             self.__expression()
+        self.__output.accept_print_function()
         return True
 
     def __print(self) -> bool:
@@ -319,6 +363,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.PRINT:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.BRACKET_L)
         if not self.__print_list():
@@ -328,6 +373,7 @@ class Syntax:
 
         self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__output.accept_print_function()
         return True
 
     def __print_list(self) -> bool:
@@ -340,16 +386,20 @@ class Syntax:
             self.__printable()
             token = self.__stream.get_token()
         self.__stream.unget(1)
+        self.__output.accept_print_function()
         return True
 
     def __printable(self) -> bool:
+        self.__output.prepare_print_function("printable")
         # error check is inside
         token = self.__stream.get_token()
         if token[1] == VALUE_TYPES.STRING:
+            self.__output.accept_print_function()
             return True
 
         self.__stream.unget(1)
         self.__expression()
+        self.__output.accept_print_function()
         return True
 
     def __input_statement(self) -> bool:
@@ -357,6 +407,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token not in [KEYWORDS.INPUT_INT, KEYWORDS.INPUT_FLOAT, KEYWORDS.INPUT_BOOL]:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__check_expected_token(TOKEN_TYPES.BRACKET_L)
@@ -365,6 +416,7 @@ class Syntax:
             self.__stream.unget(1)
         self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
 
+        self.__output.accept_print_function()
         return True
 
     def __body(self) -> bool:
@@ -373,6 +425,7 @@ class Syntax:
         self.__check_expected_token(TOKEN_TYPES.CURVE_L)
         while self.__statement_local(): pass
         self.__check_expected_token(TOKEN_TYPES.CURVE_R)
+        self.__output.accept_print_function()
         return True
 
     def __cycle_do(self) -> bool:
@@ -380,6 +433,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.DO:
               self.__stream.unget(1)
+              self.__output.discard_print_function()
               return False
         self.__body()
         self.__check_expected_token(KEYWORDS.WHILE)
@@ -390,6 +444,7 @@ class Syntax:
             exit(1)
 
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__output.accept_print_function()
         return True
 
     def __cycle_while(self) -> bool:
@@ -397,6 +452,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.WHILE:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         if not self.__logical_expression():
@@ -405,6 +461,7 @@ class Syntax:
             exit(1)
 
         self.__body()
+        self.__output.accept_print_function()
         return True
 
     def __cycle_for(self) -> bool:
@@ -412,6 +469,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.FOR:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__check_expected_token(TOKEN_TYPES.BRACKET_L)
@@ -436,6 +494,7 @@ class Syntax:
         self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
 
         self.__body()
+        self.__output.accept_print_function()
         return True
 
     def __conditional_if(self) -> bool:
@@ -444,6 +503,7 @@ class Syntax:
 
         if token[1] != KEYWORDS.IF:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         if not self.__logical_expression():
@@ -456,17 +516,20 @@ class Syntax:
         # false when no first keyword (elif/else) - error checker after this is strict
         while self.__elif(): pass
         self.__else()
+        self.__output.accept_print_function()
         return True
 
     def __elif(self) -> bool:
         self.__output.prepare_print_function("conditional_elif")
 
         if self.__stream.is_empty():
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.ELIF:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         if not self.__logical_expression():
@@ -475,20 +538,24 @@ class Syntax:
             exit(1)
 
         self.__body()
+        self.__output.accept_print_function()
         return True
 
     def __else(self) -> bool:
         self.__output.prepare_print_function("conditional_else")
 
         if self.__stream.is_empty():
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.ELSE:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__body()
+        self.__output.accept_print_function()
         return True
 
     def __conditional_switch(self) -> bool:
@@ -496,6 +563,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.SWITCH:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         if not self.__math_polynomial():
@@ -516,15 +584,18 @@ class Syntax:
 
         self.__check_expected_token(TOKEN_TYPES.CURVE_R)
 
+        self.__output.accept_print_function()
         return True
 
     def __case(self) -> bool:
         self.__output.prepare_print_function("case")
         if self.__stream.is_empty():
+            self.__output.discard_print_function()
             return False
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.CASE:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         token = self.__stream.get_token()
@@ -535,20 +606,24 @@ class Syntax:
         self.__check_expected_token(TOKEN_TYPES.COLON)
 
         self.__body()
+        self.__output.accept_print_function()
         return True
 
     def __default(self) -> bool:
         self.__output.prepare_print_function("default")
         if self.__stream.is_empty():
+            self.__output.discard_print_function()
             return False
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.DEFAULT:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__check_expected_token(TOKEN_TYPES.COLON)
 
         self.__body()
+        self.__output.accept_print_function()
         return True
 
     def __conditional_flags(self) -> bool:
@@ -556,6 +631,7 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.FLAG_IF:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__flag_list()
@@ -567,6 +643,7 @@ class Syntax:
 
         while not self.__stream.is_empty() and self.__flag_body(): pass
 
+        self.__output.accept_print_function()
         return True
 
     def __flag_list(self) -> bool:
@@ -594,10 +671,13 @@ class Syntax:
         self.__stream.unget(1)
 
         self.__check_expected_token(TOKEN_TYPES.SQUARE_R)
+        self.__output.accept_print_function()
         return True
 
     def __flag_declare(self) -> bool:
+        self.__output.prepare_print_function("flag_declare")
         if not self.__flag():
+            self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.COLON)
         if not self.__logical_expression():
@@ -605,6 +685,7 @@ class Syntax:
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
 
+        self.__output.accept_print_function()
         return True
 
     def __flag(self) -> bool:
@@ -612,18 +693,23 @@ class Syntax:
         token = self.__stream.get_token()
         if token[1] != TOKEN_TYPES.FLAG:
             self.__stream.unget(1)
+            self.__output.discard_print_function()
             return False
 
         self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
+        self.__output.accept_print_function()
         return True
 
     def __flag_body(self) -> bool:
+        self.__output.prepare_print_function("flag_body")
         if not self.__flag():
+            self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.COLON)
 
         self.__body()
 
+        self.__output.accept_print_function()
         return True
 
 

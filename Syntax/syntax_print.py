@@ -7,7 +7,7 @@ def print_console(message: str, message_type: CONSOLE_COLORS = CONSOLE_COLORS.NO
 class Syntax_print:
     def __init__(self):
         self.__indentation = 0
-        self.__INDENTATION_SIZE = 2
+        self.__INDENTATION = "│  "
         self.__prepared_print: list[str] = []
 
     @staticmethod
@@ -25,7 +25,7 @@ class Syntax_print:
             return token.value[1]
 
     def prepare_print_function(self, function_name: str) -> None:
-        self.__prepared_print.append((" " * self.__INDENTATION_SIZE) + function_name + "():")
+        self.__prepared_print.append((self.__INDENTATION * self.__indentation) + function_name + "():")
         self.increase_indentation()
 
     def discard_print_function(self) -> None:
@@ -33,12 +33,15 @@ class Syntax_print:
         self.decrease_indentation()
 
     def accept_print_function(self) -> None:
-        print_console(self.__prepared_print.pop())
-        self.decrease_indentation()\
+        self.decrease_indentation()
+        for x in self.__prepared_print:
+            print_console(x)
+
+        self.__prepared_print.clear()
 
 
     def print_lexeme(self, line: str, value: str, token_type: TOKEN_TYPES | KEYWORDS | VALUE_TYPES) -> None:
-        print_console((" " * self.__INDENTATION_SIZE) + f"line {line} - {value} of type {self.token_to_type_str(token_type)}")
+        print_console((self.__INDENTATION * self.__indentation) + f"line {line} - {value} of type {self.token_to_type_str(token_type)}")
 
     def increase_indentation(self):
         self.__indentation += 1
@@ -48,7 +51,7 @@ class Syntax_print:
             print_console("Error -> TP (Internal): Broken indentations - possible incorrect behavior", CONSOLE_COLORS.ERROR)
             exit(1)
 
-        self.__indentation = self.__indentation - 1
+        self.__indentation -= 1
 
     def print_incorrect_found_error(self,
                                     found: tuple[str, TOKEN_TYPES | KEYWORDS | VALUE_TYPES] | None,
