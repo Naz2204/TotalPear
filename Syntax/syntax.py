@@ -1,9 +1,12 @@
-from Lexer.lexer   import lexer_run as lexer
 from syntax_stream import *
 from syntax_print  import *
 from syntax_consts import *
 import sys
 import os
+
+sys.path.append('../Lexer/')
+from Lexer.lexer   import lexer_run as lexer
+
 
 # TODO: check returns and ungets and exits add identation, update print_consol to some syntax_print
 
@@ -17,7 +20,7 @@ class Syntax:
 
     def __check_expected_token(self, expected_tokens: list[KEYWORDS | TOKEN_TYPES | VALUE_TYPES] | KEYWORDS | TOKEN_TYPES | VALUE_TYPES) -> bool:
         token = self.__stream.get_token()
-        expected_tokens = [expected_tokens] if expected_tokens is not list else expected_tokens
+        expected_tokens = [expected_tokens] if type(expected_tokens) is not list else expected_tokens
 
         if token[1] in expected_tokens:
             return True
@@ -35,6 +38,7 @@ class Syntax:
             exit(1)
 
         while self.__statement_line(): pass
+        print_console("Success -> TP syntax (Result): Success syntax", CONSOLE_COLORS.OK)
 
 
         self.__output.accept_print_function()
@@ -150,6 +154,7 @@ class Syntax:
                 print_console(f"Error -> TP syntax (Runtime): no logical expression after or operator on line {self.__stream.get_line()}",
                               CONSOLE_COLORS.ERROR)
                 exit(1)
+            token = self.__stream.get_token()
         self.__stream.unget(1)
         self.__output.accept_print_function()
         return True
@@ -166,6 +171,8 @@ class Syntax:
                 print_console(f"Error -> TP syntax (Runtime): no logical expression after and operator on line {self.__stream.get_line()}",
                               CONSOLE_COLORS.ERROR)
                 exit(1)
+            token = self.__stream.get_token()
+
         self.__stream.unget(1)
 
         self.__output.accept_print_function()
@@ -196,10 +203,10 @@ class Syntax:
 
     def __logical4(self) -> bool:
         self.__output.prepare_print_function("logical4")
-        # FIX: ADD Comparison
-        # if self.__comparison(): # must be before bracket and logical value - because it can be start of it
-        #     self.__output.accept_print_function(()
-        #     return True
+
+        if self.__comparison():
+            self.__output.accept_print_function()
+            return True
 
         token = self.__stream.get_token()
         if token[1] == TOKEN_TYPES.BRACKET_L:
@@ -220,9 +227,62 @@ class Syntax:
         self.__output.discard_print_function()
         return False
 
-    def __comparison(self) -> bool: pass
-    # b = if == true
-    #a and b == true
+    def __comparison(self) -> bool:
+        self.__output.prepare_print_function("comparison")
+        token = self.__stream.get_token()
+        if token[1] != TOKEN_TYPES.COMPARISON_BRACKET:
+            self.__stream.unget(1)
+            self.__output.discard_print_function()
+            return False
+
+        if not self.__math_comparison() and not self.__logical_comparison():
+            print_console(
+                f"Error -> TP syntax (Runtime): nothing to compare inside compare brackets on line {self.__stream.get_line()}",
+                CONSOLE_COLORS.ERROR)
+            exit(1)
+
+
+        self.__check_expected_token(TOKEN_TYPES.COMPARISON_BRACKET)
+        self.__output.accept_print_function()
+        return True
+
+    def __math_comparison(self) -> bool:
+        self.__output.prepare_print_function("math_comparison")
+
+        if not self.__math_polynomial():
+            self.__output.discard_print_function()
+            return False
+
+        self.__check_expected_token([TOKEN_TYPES.OP_LESS_EQUAL, TOKEN_TYPES.OP_BIGGER_EQUAL ,TOKEN_TYPES.OP_BIGGER ,
+                                     TOKEN_TYPES.OP_LESS ,TOKEN_TYPES.OP_EQUAL ,TOKEN_TYPES.OP_NOT_EQUAL])
+
+        if not self.__math_polynomial():
+            print_console(
+                f"Error -> TP syntax (Runtime): no math expression after comparison sign on line {self.__stream.get_line()}",
+                CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        self.__output.accept_print_function()
+        return True
+
+    def __logical_comparison(self) -> bool:
+        self.__output.prepare_print_function("logical_comparison")
+
+        if not self.__logical_expression():
+            self.__output.discard_print_function()
+            return False
+
+        self.__check_expected_token([TOKEN_TYPES.OP_EQUAL ,TOKEN_TYPES.OP_NOT_EQUAL])
+
+        if not self.__logical_expression():
+            print_console(
+                f"Error -> TP syntax (Runtime): no logical expression after comparison sign on line {self.__stream.get_line()}",
+                CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        self.__output.accept_print_function()
+        return True
+
 
     def __math_polynomial(self) -> bool:
         self.__output.prepare_print_function("math_polynomial")
