@@ -10,7 +10,7 @@ class Syntax_input:
         self.__table_iterator: int = 0
         self.__line: int           = 0
 
-    def get_token(self) -> tuple[str, TOKEN_TYPES | KEYWORDS | VALUE_TYPES] | None:
+    def get_token(self) -> tuple[str, TOKEN_TYPES | KEYWORDS | VALUE_TYPES]:
         """
         :return: (token, type) or None on EOF
         """

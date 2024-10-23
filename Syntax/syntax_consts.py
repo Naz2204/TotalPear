@@ -60,6 +60,7 @@ class TOKEN_TYPES(Enum):
     CURVE_R = "curve_r", "}"
     SQUARE_L = "square_l", "["
     SQUARE_R = "square_r", "]"
+    COMPARISON_BRACKET = "conditional_bracket", "|"
 
     # Special
     END_STATEMENT = "end_statement", ";"

@@ -54,11 +54,11 @@ class Syntax_print:
         self.__indentation -= 1
 
     def print_incorrect_found_error(self,
-                                    found: tuple[str, TOKEN_TYPES | KEYWORDS | VALUE_TYPES] | None,
+                                    found: tuple[str, TOKEN_TYPES | KEYWORDS | VALUE_TYPES],
                                     expected: list[TOKEN_TYPES | KEYWORDS | VALUE_TYPES],
                                     error_line_num: int):
 
-        if found is None:
+        if found[1] == TOKEN_TYPES.EOF:
             to_print = "Error -> TP (Syntax): Unexpected EOF\nExpected: "
         else:
             to_print = ("Error -> TP (Syntax): Unexpected element on line" + str(error_line_num) + "\n" +
