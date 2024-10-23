@@ -65,7 +65,8 @@ class TOKEN_TYPES(Enum):
     END_STATEMENT = "end_statement", ";"
     FLAG = "flag", "#"
     COLON = "colon", ":"
-    PARAM_SEPARATOR = "param_separator", ";"
+    PARAM_SEPARATOR = "param_separator", ","
+    EOF = "eof", ""
 
 class VALUE_TYPES(Enum):
     IDENTIFIER = "ident"

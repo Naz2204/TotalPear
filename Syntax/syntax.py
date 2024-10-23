@@ -17,35 +17,38 @@ class Syntax:
 
     def __check_expected_token(self, expected_tokens: list[KEYWORDS | TOKEN_TYPES | VALUE_TYPES] | KEYWORDS | TOKEN_TYPES | VALUE_TYPES) -> bool:
         token = self.__stream.get_token()
-        if token is None:
-            self.__output.print_incorrect_found_error(None, expected_tokens, self.__stream.get_line())
-            exit(1)
+        expected_tokens = [expected_tokens] if expected_tokens is not list else expected_tokens
 
         if token[1] in expected_tokens:
             return True
         self.__output.print_incorrect_found_error(token, expected_tokens, self.__stream.get_line())
         exit(1)
 
+
+
     #  --------------------- statements ---------------------
     def __statement_list(self) -> bool:
-        self.__output.print_parse_function("statement_list():")
+        self.__output.prepare_print_function("statement_list")
         at_least_one: bool = self.__statement_line()
         if not at_least_one:
             print_console("Error -> TP syntax (Runtime): empty program", CONSOLE_COLORS.ERROR)
             exit(1)
 
-        while self.__statement_line():
-            pass
+        while self.__statement_line(): pass
 
+        self.__output.accept_print_function()
         return True
 
     def __statement_line(self) -> bool:
-        self.__output.print_parse_function("statement_line():")
-
-        if self.__statement_local() or self.__init_declare():
-            return True
+        self.__output.prepare_print_function("statement_line")
 
         if self.__stream.is_empty():
+            # TODO: check for remove?
+
+            return False
+
+        if self.__statement_local() or self.__init_declare():
+
             return True
 
         # file not empty
@@ -56,23 +59,26 @@ class Syntax:
             VALUE_TYPES.IDENTIFIER
         ], self.__stream.get_line())
         exit(1)
+        # return False
 
     def __statement_local(self) -> bool:
-        self.__output.print_parse_function("statement_local():")
+        self.__output.prepare_print_function("statement_local")
 
-        return (self.__assign()            or  self.__print()               or
-                self.__cycle_do()          or  self.__cycle_for()           or
-                self.__cycle_while()       or  self.__conditional_if()      or
-                self.__conditional_flags() or  self.__conditional_switch())
+        is_ok =  (self.__assign()            or  self.__print()               or
+                  self.__cycle_do()          or  self.__cycle_for()           or
+                  self.__cycle_while()       or  self.__conditional_if()      or
+                  self.__conditional_flags() or  self.__conditional_switch())
+        return is_ok
 
     #  --------------------- variable ---------------------
 
     def __init_declare(self) -> bool:
-        self.__output.print_parse_function("init_declare():")
+        self.__output.prepare_print_function("init_declare")
         token = self.__stream.get_token()
         if token[1] not in (KEYWORDS.FLOAT, KEYWORDS.INT, KEYWORDS.BOOL):
             self.__stream.unget(1)
             return False
+
 
         self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
 
@@ -96,68 +102,192 @@ class Syntax:
     #  --------------------- expression ---------------------
     def __expression(self) -> bool:
         # error check is inside
-        self.__output.print_parse_function("expression():")
+        self.__output.prepare_print_function("expression")
+
+        start_read = self.__stream.get_current_token_number()
+
+        if self.__math_polynomial():
+            token = self.__stream.get_token()
+            if token[1] not in [TOKEN_TYPES.OP_EQUAL, TOKEN_TYPES.OP_NOT_EQUAL, TOKEN_TYPES.OP_BIGGER_EQUAL,
+                                TOKEN_TYPES.OP_LESS_EQUAL, TOKEN_TYPES.OP_LESS, TOKEN_TYPES.OP_BIGGER]:
+                self.__stream.unget(1)
+                return True
+
+        end_read = self.__stream.get_current_token_number()
+        self.__stream.unget(end_read - start_read) # refresh before reading math_polynomial
+        if not self.__logical_expression():
+            print_console(
+                f"Error -> TP syntax (Runtime): no expression on line {self.__stream.get_line()}",
+                CONSOLE_COLORS.ERROR)
+            exit(1)
+        return True
 
     def __logical_expression(self) -> bool:
-        self.__output.print_parse_function("logical_expression():")
+        self.__output.prepare_print_function("logical_expression")
+        if not self.__logical2():
+            return False
+
+
+        token = self.__stream.get_token()
+        while token[1] == TOKEN_TYPES.OP_OR:
+            if not self.__logical2():
+                print_console(f"Error -> TP syntax (Runtime): no logical expression after or operator on line {self.__stream.get_line()}",
+                              CONSOLE_COLORS.ERROR)
+                exit(1)
+        self.__stream.unget(1)
+        return True
+
+    def __logical2(self) -> bool:
+        self.__output.prepare_print_function("logical2")
+        if not self.__logical3():
+            return False
+
+        token = self.__stream.get_token()
+        while token[1] == TOKEN_TYPES.OP_AND:
+            if not self.__logical3():
+                print_console(f"Error -> TP syntax (Runtime): no logical expression after and operator on line {self.__stream.get_line()}",
+                              CONSOLE_COLORS.ERROR)
+                exit(1)
+        self.__stream.unget(1)
+
+        return True
+
+    def __logical3(self) -> bool:
+        self.__output.prepare_print_function("logical3")
+        token = self.__stream.get_token()
+        there_is_not: bool = False
+        while token[1] == TOKEN_TYPES.OP_NOT:
+            there_is_not = True
+            token = self.__stream.get_token()
+        self.__stream.unget(1)
+
+        is_value_ok = self.__logical4()
+        if not is_value_ok and not there_is_not:
+            return False
+
+        if not is_value_ok and there_is_not:
+            print_console(
+                f"Error -> TP syntax (Runtime): no correct continuation after not operator on line {self.__stream.get_line()}",
+                CONSOLE_COLORS.ERROR)
+            exit(1)
+
+        return True
+
+    def __logical4(self) -> bool:
+        self.__output.prepare_print_function("logical4")
+        # FIX: ADD Comparison
+        # if self.__comparison(): # must be before bracket and logical value - because it can be start of it
+        #     return True
+
+        token = self.__stream.get_token()
+        if token[1] == TOKEN_TYPES.BRACKET_L:
+            if not self.__logical_expression():
+                self.__stream.unget(1)
+                return False
+            self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+            return True
+
+        if token[1] in [VALUE_TYPES.BOOL, VALUE_TYPES.IDENTIFIER]:
+            return True
+        else:
+            self.__stream.unget(1)
+        
+        return False
+
+    def __comparison(self) -> bool: pass
+    # b = if == true
+    #a and b == true
 
     def __math_polynomial(self) -> bool:
-        self.__output.print_parse_function("math_polynomial():")
+        self.__output.prepare_print_function("math_polynomial")
         if not self.__math_monomial():
             return False
 
         token = self.__stream.get_token()
-        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
+        while token[1] in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
             if not self.__math_monomial():
-                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
+                print_console(f"Error -> TP syntax (Runtime): no monomial after {token[1].value} on line {self.__stream.get_line()}",
                               CONSOLE_COLORS.ERROR)
                 exit(1)
+            token = self.__stream.get_token()
+
         self.__stream.unget(1)
         return True
 
     def __math_monomial(self) -> bool:
-        self.__output.print_parse_function("math_monomial():")
-        if not self.__math_monomial():
+        # ceil error checker for other math that is lower in recursion
+        self.__output.prepare_print_function("math_monomial")
+        if not self.__math_primary1():
             return False
 
         token = self.__stream.get_token()
-        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
-            if not self.__math_monomial():
-                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
+        while token[1] in [TOKEN_TYPES.OP_MULTI, TOKEN_TYPES.OP_DIVIDE]:
+            if not self.__math_primary1():
+                print_console(f"Error -> TP syntax (Runtime): no continuation after {token[1].value} on line {self.__stream.get_line()}",
                               CONSOLE_COLORS.ERROR)
                 exit(1)
+            token = self.__stream.get_token()
         self.__stream.unget(1)
         return True
 
     def __math_primary1(self) -> bool:
-        self.__output.print_parse_function("math_monomial():")
-        if not self.__math_primary2():
+        self.__output.prepare_print_function("math_primary1")
+        token = self.__stream.get_token()
+        there_is_minus: bool = False
+        while token[1] == TOKEN_TYPES.OP_MINUS:
+            there_is_minus = True
+            token = self.__stream.get_token()
+        self.__stream.unget(1)
+
+        is_value_ok = self.__math_primary2()
+
+        if not is_value_ok and not there_is_minus:
             return False
 
-        token = self.__stream.get_token()
-        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
-            if not self.__math_primary2():
-                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
-                              CONSOLE_COLORS.ERROR)
-                exit(1)
-        self.__stream.unget(1)
+        if not is_value_ok and there_is_minus:
+            print_console(
+                f"Error -> TP syntax (Runtime): no continuation after unary minus on line {self.__stream.get_line()}",
+                CONSOLE_COLORS.ERROR)
+            exit(1)
+
         return True
 
     def __math_primary2(self) -> bool:
-        self.__output.print_parse_function("math_monomial():")
-        if not self.__math_primary2():
+        self.__output.prepare_print_function("math_primary2")
+        if not self.__math_primary3():
             return False
 
         token = self.__stream.get_token()
-        while token in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
-            if not self.__math_primary2():
-                print_console(f"Error -> TP syntax (Runtime): no monomial after {token.value[1]} on line {self.__stream.get_line()}",
-                              CONSOLE_COLORS.ERROR)
+        if token[1] == TOKEN_TYPES.OP_POWER:
+
+            if not self.__math_primary1():
+                print_console(
+                    f"Error -> TP syntax (Runtime): no correct continuation after power operator on line {self.__stream.get_line()}",
+                    CONSOLE_COLORS.ERROR)
                 exit(1)
-        self.__stream.unget(1)
+        else: # not power
+            self.__stream.unget(1)
+
         return True
 
-    def __math_primary3(self) -> bool: pass
+    def __math_primary3(self) -> bool:
+        self.__output.prepare_print_function("math_primary3")
+
+        token = self.__stream.get_token()
+        if token[1] == TOKEN_TYPES.BRACKET_L:
+            if not self.__math_polynomial():
+                self.__stream.unget(1)
+                return False
+            self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+            return True
+
+        if token[1] not in [VALUE_TYPES.INT, VALUE_TYPES.FLOAT, VALUE_TYPES.IDENTIFIER]:
+            self.__stream.unget(1)
+            return False
+
+        return True
+
+
 
     #  --------------------- --- ---------------------
 
@@ -168,8 +298,9 @@ class Syntax:
         return True
 
     def __assign_statement(self) -> bool:
-        self.__output.print_parse_function("assign():")
+        self.__output.prepare_print_function("assign")
         token = self.__stream.get_token()
+
         if token[1] != VALUE_TYPES.IDENTIFIER:
             self.__stream.unget(1)
             return False
@@ -184,7 +315,7 @@ class Syntax:
         return True
 
     def __print(self) -> bool:
-        self.__output.print_parse_function("print():")
+        self.__output.prepare_print_function("print")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.PRINT:
             self.__stream.unget(1)
@@ -200,11 +331,12 @@ class Syntax:
         return True
 
     def __print_list(self) -> bool:
-        self.__output.print_parse_function("print_list():")
+        self.__output.prepare_print_function("print_list")
         self.__printable() # error check is inside
 
         token = self.__stream.get_token()
-        while token == TOKEN_TYPES.PARAM_SEPARATOR:
+
+        while token[1] == TOKEN_TYPES.PARAM_SEPARATOR:
             self.__printable()
             token = self.__stream.get_token()
         self.__stream.unget(1)
@@ -221,7 +353,7 @@ class Syntax:
         return True
 
     def __input_statement(self) -> bool:
-        self.__output.print_parse_function("input_statement():")
+        self.__output.prepare_print_function("input_statement")
         token = self.__stream.get_token()
         if token not in [KEYWORDS.INPUT_INT, KEYWORDS.INPUT_FLOAT, KEYWORDS.INPUT_BOOL]:
             self.__stream.unget(1)
@@ -236,6 +368,7 @@ class Syntax:
         return True
 
     def __body(self) -> bool:
+        self.__output.prepare_print_function("body")
         # error check is inside
         self.__check_expected_token(TOKEN_TYPES.CURVE_L)
         while self.__statement_local(): pass
@@ -243,7 +376,7 @@ class Syntax:
         return True
 
     def __cycle_do(self) -> bool:
-        self.__output.print_parse_function("cycle_do():")
+        self.__output.prepare_print_function("cycle_do")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.DO:
               self.__stream.unget(1)
@@ -260,7 +393,7 @@ class Syntax:
         return True
 
     def __cycle_while(self) -> bool:
-        self.__output.print_parse_function("cycle_while():")
+        self.__output.prepare_print_function("cycle_while")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.WHILE:
             self.__stream.unget(1)
@@ -275,7 +408,7 @@ class Syntax:
         return True
 
     def __cycle_for(self) -> bool:
-        self.__output.print_parse_function("cycle_for():")
+        self.__output.prepare_print_function("cycle_for")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.FOR:
             self.__stream.unget(1)
@@ -306,8 +439,9 @@ class Syntax:
         return True
 
     def __conditional_if(self) -> bool:
-        self.__output.print_parse_function("conditional_if():")
+        self.__output.prepare_print_function("conditional_if")
         token = self.__stream.get_token()
+
         if token[1] != KEYWORDS.IF:
             self.__stream.unget(1)
             return False
@@ -325,7 +459,11 @@ class Syntax:
         return True
 
     def __elif(self) -> bool:
-        self.__output.print_parse_function("conditional_elif():")
+        self.__output.prepare_print_function("conditional_elif")
+
+        if self.__stream.is_empty():
+            return False
+
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.ELIF:
             self.__stream.unget(1)
@@ -340,7 +478,11 @@ class Syntax:
         return True
 
     def __else(self) -> bool:
-        self.__output.print_parse_function("conditional_else():")
+        self.__output.prepare_print_function("conditional_else")
+
+        if self.__stream.is_empty():
+            return False
+
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.ELSE:
             self.__stream.unget(1)
@@ -350,7 +492,7 @@ class Syntax:
         return True
 
     def __conditional_switch(self) -> bool:
-        self.__output.print_parse_function("conditional_switch():")
+        self.__output.prepare_print_function("conditional_switch")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.SWITCH:
             self.__stream.unget(1)
@@ -377,7 +519,9 @@ class Syntax:
         return True
 
     def __case(self) -> bool:
-        self.__output.print_parse_function("case():")
+        self.__output.prepare_print_function("case")
+        if self.__stream.is_empty():
+            return False
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.CASE:
             self.__stream.unget(1)
@@ -394,6 +538,9 @@ class Syntax:
         return True
 
     def __default(self) -> bool:
+        self.__output.prepare_print_function("default")
+        if self.__stream.is_empty():
+            return False
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.DEFAULT:
             self.__stream.unget(1)
@@ -405,7 +552,7 @@ class Syntax:
         return True
 
     def __conditional_flags(self) -> bool:
-        self.__output.print_parse_function("conditional_flags():")
+        self.__output.prepare_print_function("conditional_flags")
         token = self.__stream.get_token()
         if token[1] != KEYWORDS.FLAG_IF:
             self.__stream.unget(1)
@@ -418,11 +565,12 @@ class Syntax:
             print_console(f"Error -> TP syntax (Runtime): no flag body in flagIf, on line {self.__stream.get_line()}", CONSOLE_COLORS.ERROR)
             exit(1)
 
-        while self.__flag_body(): pass
+        while not self.__stream.is_empty() and self.__flag_body(): pass
 
         return True
 
     def __flag_list(self) -> bool:
+        self.__output.prepare_print_function("flag_list")
         # error check is inside
         self.__check_expected_token(TOKEN_TYPES.SQUARE_L)
         at_least_once: bool = self.__flag_declare()
@@ -432,7 +580,8 @@ class Syntax:
             exit(1)
 
         token = self.__stream.get_token()
-        while token == TOKEN_TYPES.PARAM_SEPARATOR:
+
+        while token[1] == TOKEN_TYPES.PARAM_SEPARATOR:
             if not self.__flag_declare():
                 print_console(
                     f"Error -> TP syntax (Runtime): no flag declaration after coma, on line {self.__stream.get_line()}",
@@ -440,6 +589,8 @@ class Syntax:
                 exit(1)
 
             token = self.__stream.get_token()
+
+
         self.__stream.unget(1)
 
         self.__check_expected_token(TOKEN_TYPES.SQUARE_R)
@@ -457,6 +608,7 @@ class Syntax:
         return True
 
     def __flag(self) -> bool:
+        self.__output.prepare_print_function("flag")
         token = self.__stream.get_token()
         if token[1] != TOKEN_TYPES.FLAG:
             self.__stream.unget(1)
@@ -469,7 +621,9 @@ class Syntax:
         if not self.__flag():
             return False
         self.__check_expected_token(TOKEN_TYPES.COLON)
+
         self.__body()
+
         return True
 
 
@@ -480,10 +634,10 @@ def process_start_args() -> str | None:
 
     # get check amount of params
     startup_args: list[str] = sys.argv
-    if len(startup_args) < 1:
+    if len(startup_args) < 2:
         print_console("Error -> TP syntax (Startup): no file was provided", CONSOLE_COLORS.ERROR)
         return None
-    if len(startup_args) > 1:
+    if len(startup_args) > 2:
         print_console("Error -> TP syntax (Startup): too many parameters were provided", CONSOLE_COLORS.ERROR)
         return None
 
@@ -522,7 +676,5 @@ def main_syntax():
 
 
 if __name__ == '__main__':
-    try:
-        main_syntax()
-    except:
-        pass
+
+    main_syntax()

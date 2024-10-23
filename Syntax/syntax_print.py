@@ -8,6 +8,7 @@ class Syntax_print:
     def __init__(self):
         self.__indentation = 0
         self.__INDENTATION_SIZE = 2
+        self.__prepared_print: list[str] = []
 
     @staticmethod
     def token_to_str(token: TOKEN_TYPES | KEYWORDS | VALUE_TYPES) -> str:
@@ -23,8 +24,18 @@ class Syntax_print:
         else:
             return token.value[1]
 
-    def print_parse_function(self, function_name: str):
-        print_console((" " * self.__INDENTATION_SIZE) + function_name + ":")
+    def prepare_print_function(self, function_name: str) -> None:
+        self.__prepared_print.append((" " * self.__INDENTATION_SIZE) + function_name + "():")
+        self.increase_indentation()
+
+    def discard_print_function(self) -> None:
+        self.__prepared_print.pop()
+        self.decrease_indentation()
+
+    def accept_print_function(self) -> None:
+        print_console(self.__prepared_print.pop())
+        self.decrease_indentation()\
+
 
     def print_lexeme(self, line: str, value: str, token_type: TOKEN_TYPES | KEYWORDS | VALUE_TYPES) -> None:
         print_console((" " * self.__INDENTATION_SIZE) + f"line {line} - {value} of type {self.token_to_type_str(token_type)}")
@@ -57,6 +68,7 @@ class Syntax_print:
 
         print_console(to_print, CONSOLE_COLORS.ERROR)
 
+    # FIXME endstatement не красіво виводиться
     def print_lexeme_error(self, error_line_num: int):
         """
         :param error_line_num: Line where error occurred

@@ -15,8 +15,9 @@ class Syntax_input:
         :return: (token, type) or None on EOF
         """
         if self.__table_iterator >= len(self.__lexer_table):
-            self.__table_iterator = len(self.__lexer_table)
-            return None
+            # self.__table_iterator = len(self.__lexer_table) - unget should be called
+            self.__table_iterator += 1
+            return "eof", TOKEN_TYPES.EOF
 
         next_value = self.__lexer_table[self.__table_iterator]
         self.__table_iterator += 1
@@ -24,10 +25,10 @@ class Syntax_input:
         self.__line = next_value[0]
         value = next_value[1]
         token_type = next_value[2]
-
+        # print(token_type, value)
         try:
             if token_type == "keyword":
-                return value, KEYWORDS(token_type)
+                return value, KEYWORDS(value)
             elif token_type in VALUE_TYPES_VALUES:
                 return value, VALUE_TYPES(token_type)
             else:
@@ -39,8 +40,11 @@ class Syntax_input:
 
     def unget(self, amount: int) -> None:
         # FIXME update line counter
-        if self.__table_iterator - amount  :
-        self.__table_iterator -= amount
+        if self.__table_iterator - amount >= 0:
+            self.__table_iterator -= amount
+            return
+        print_console("Error -> TP (Internal): Broken token stream - incorrect behaviour", CONSOLE_COLORS.ERROR)
+        exit(1)
 
     def get_current_token_number(self) -> int:
         return self.__table_iterator
