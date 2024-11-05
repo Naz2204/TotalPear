@@ -1,5 +1,5 @@
-from syntax_print import print_console
-from syntax_consts import *
+from semantic_syntax_print import print_console
+from semantic_syntax_consts import *
 
 class Syntax_input:
     def __init__(self, lexer_result: tuple[dict, dict, list]):
@@ -25,7 +25,6 @@ class Syntax_input:
         self.__line = next_value[0]
         value = next_value[1]
         token_type = next_value[2]
-        # print(token_type, value)
         try:
             if token_type == "keyword":
                 return value, KEYWORDS(value)

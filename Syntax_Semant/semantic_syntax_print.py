@@ -1,4 +1,4 @@
-from syntax_consts import CONSOLE_COLORS, KEYWORDS, TOKEN_TYPES, VALUE_TYPES
+from semantic_syntax_consts import CONSOLE_COLORS, KEYWORDS, TOKEN_TYPES, VALUE_TYPES
 
 def print_console(message: str, message_type: CONSOLE_COLORS = CONSOLE_COLORS.NORMAL):
     print(message_type.value + message + CONSOLE_COLORS.NORMAL.value)
@@ -12,9 +12,12 @@ class Syntax_print:
 
     @staticmethod
     def token_to_str(token: TOKEN_TYPES | KEYWORDS | VALUE_TYPES) -> str:
+        print(type(token))
         if type(token) in [KEYWORDS, VALUE_TYPES]:
+            print(type(token) is VALUE_TYPES, token.value)
             return str(token.value)
         else:
+            # print(isinstance(token.value in KEYWORDS_VALUES))
             return token.value[0]
 
     @staticmethod
@@ -61,7 +64,7 @@ class Syntax_print:
         if found[1] == TOKEN_TYPES.EOF:
             to_print = "Error -> TP (Syntax): Unexpected EOF\nExpected: "
         else:
-            to_print = ("Error -> TP (Syntax): Unexpected element on line" + str(error_line_num) + "\n" +
+            to_print = ("Error -> TP (Syntax): Unexpected element on line " + str(error_line_num) + "\n" +
                         "Found element: " + str(found[0]) + " of type " + self.token_to_type_str(found[1]) + "\n" +
                         "Expected: ")
 

@@ -1,9 +1,7 @@
-from tkinter.ttk import setup_master
-
-from Syntax_Semant.syntax_var_table import Syntax_var_table
-from syntax_stream   import *
-from syntax_print    import *
-from syntax_consts   import *
+from semantic_syntax_var_table import Syntax_var_table
+from semantic_syntax_stream   import *
+from semantic_syntax_print    import *
+from semantic_syntax_consts   import *
 from semantic_consts import *
 import sys
 import os
@@ -31,6 +29,7 @@ class Syntax:
 
         if token[1] in expected_tokens:
             return token[0]
+
         self.__output.print_incorrect_found_error(token, expected_tokens, self.__stream.get_line())
         exit(1)
 
@@ -99,8 +98,9 @@ class Syntax:
             self.__stream.unget(1)
             self.__output.discard_print_function()
             return False
-        keyword_type = SEMANTIC_TYPE(token[1].value) # token either float, int or bool
 
+
+        keyword_type = KEYWORDS_TO_SEMANTIC_TYPE[token[1]] # token either float, int or bool
         var_name = self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
 
         # -- check declaration
@@ -128,6 +128,7 @@ class Syntax:
         math_cast_init = keyword_type in (SEMANTIC_TYPE.FLOAT, SEMANTIC_TYPE.INT) and semantic_type in (SEMANTIC_TYPE.FLOAT, SEMANTIC_TYPE.INT)
         bool_init = keyword_type is SEMANTIC_TYPE.BOOL and semantic_type is SEMANTIC_TYPE.BOOL
         okay_init = math_cast_init or bool_init
+
         if not okay_init:
             error_text = ("Initialization, type missmatch: variable type -> " + keyword_type.value +
                           ", expression type -> " + semantic_type.value)
@@ -153,32 +154,44 @@ class Syntax:
         start_read = self.__stream.get_current_token_number()
 
         polynomial = self.__math_polynomial()
-        if polynomial[0]:
-            token = self.__stream.get_token()
-            if token[1] not in [TOKEN_TYPES.OP_EQUAL, TOKEN_TYPES.OP_NOT_EQUAL, TOKEN_TYPES.OP_BIGGER_EQUAL,
-                                TOKEN_TYPES.OP_LESS_EQUAL, TOKEN_TYPES.OP_LESS, TOKEN_TYPES.OP_BIGGER]:
-                self.__stream.unget(1)
-                self.__output.accept_print_function()
-                if type(polynomial[1]) == str: # end of math-end branch of monads
-                    self.__output.print_semantic_error(self.__stream.get_line(), polynomial[1])
-                    exit(1)
-
-                return polynomial[1]
-
         end_read = self.__stream.get_current_token_number()
+        result: tuple[tuple[bool, str | SEMANTIC_TYPE], int] = (polynomial, end_read)
+
         self.__stream.unget(end_read - start_read) # refresh before reading math_polynomial
 
         logical = self.__logical_expression()
-        if not logical[0]:
+        end_read = self.__stream.get_current_token_number()
+
+        if result[1] < end_read:    # use logical
+            result = (logical, end_read)
+        elif result[1] == end_read: # choose by semantic (correctness?)
+            if not result[0][0] or (type(result[0][1]) is str):
+                result = (logical, end_read)
+        else:                       # use math
+            for _ in range(result[1] - end_read):
+                self.__stream.get_token()
+
+        # check error
+        # result[0][0] is first because it is produced by return of (False, "") - which also sets result[0][1]
+        if not result[0][0]: # 1.0
             print_console(
-                f"Error -> TP syntax (Runtime): no expression on line {self.__stream.get_line()}",
+                f"Error -> TP syntax (Runtime): no valid expression on line {self.__stream.get_line()}",
                 CONSOLE_COLORS.ERROR)
             exit(1)
-        self.__output.accept_print_function()
-        if type(logical[1]) == str: # end of logical-end branch of monads
+        elif type(result[0][1]) is str: # 0.1
+            self.__output.print_semantic_error(self.__stream.get_line(), result[0][1])
+            exit(1)
+
+        # is correct
+        return result[0][1]
+
+    def __logical_expression_wrapped(self) -> bool:
+        logical = self.__logical_expression()
+        if logical[0] and (type(logical[1]) is str):
             self.__output.print_semantic_error(self.__stream.get_line(), logical[1])
             exit(1)
-        return logical[1]
+
+        return logical[0]
 
     def __logical_expression(self) -> tuple[bool, str | SEMANTIC_TYPE]:
         self.__output.prepare_print_function("logical_expression")
@@ -248,13 +261,11 @@ class Syntax:
 
         type = logical[1]
         if there_is_not:
-            type = expression_type(token[1], type)
+            type = expression_type_unary(token[1], type)
         self.__output.accept_print_function()
         return True, type
 
     def __logical4(self) -> tuple[bool, str | SEMANTIC_TYPE]:
-        raise "implement"
-
         self.__output.prepare_print_function("logical4")
 
         comparison = self.__comparison()
@@ -280,10 +291,10 @@ class Syntax:
             if var_type is None:
                 var_type = "Using of undeclared variable: " + token[0]
             elif var_type is not SEMANTIC_TYPE.BOOL:
-                var_type = "Type missmatch: variable " + token[0] + "type " + token[1].value + ", expected type bool"
+                var_type = "Type missmatch: variable \'" + token[0] + "\' type " + var_type.value + ", expected type bool"
             self.__output.accept_print_function()
             return True, var_type # monad control
-        elif token[1] is VALUE_TYPE.BOOL:
+        elif token[1] is VALUE_TYPES.BOOL:
             self.__output.accept_print_function()
             return True, SEMANTIC_TYPE.BOOL
         else: # bad var and value
@@ -299,69 +310,41 @@ class Syntax:
             self.__output.discard_print_function()
             return False, ""
 
-        math    = self.__math_comparison()
-        logical = self.__logical_expression()
-        if not math[0] and not logical[0]: # syntax absence error
-            print_console(
-                f"Error -> TP syntax (Runtime): nothing to compare inside compare brackets on line {self.__stream.get_line()}",
-                CONSOLE_COLORS.ERROR)
+        # --------------------------------------------------------
+
+        left = self.__expression()
+
+        allow_operator = [TOKEN_TYPES.OP_LESS_EQUAL, TOKEN_TYPES.OP_BIGGER_EQUAL, TOKEN_TYPES.OP_BIGGER,
+                          TOKEN_TYPES.OP_LESS,       TOKEN_TYPES.OP_EQUAL,        TOKEN_TYPES.OP_NOT_EQUAL]
+        if left is SEMANTIC_TYPE.BOOL:
+            allow_operator = [TOKEN_TYPES.OP_EQUAL, TOKEN_TYPES.OP_NOT_EQUAL]
+
+        self.__check_expected_token(allow_operator)
+
+        right = self.__expression()
+
+        if (left is     SEMANTIC_TYPE.BOOL and right is not SEMANTIC_TYPE.BOOL):
+            print_console(f"Error -> TP syntax (Runtime): no logical expression after comparison sign on line {self.__stream.get_line()}",
+                          CONSOLE_COLORS.ERROR)
+            exit(1)
+        elif (left is not SEMANTIC_TYPE.BOOL and right is     SEMANTIC_TYPE.BOOL):
+            print_console(f"Error -> TP syntax (Runtime): no math expression after comparison sign on line {self.__stream.get_line()}",
+                          CONSOLE_COLORS.ERROR)
             exit(1)
 
-        type = logical[1] # assume logical[0]
-        if math[0]: # then not logical[0]
-            type = math[1]
+        # --------------------------------------------------------
 
         self.__check_expected_token(TOKEN_TYPES.COMPARISON_BRACKET)
         self.__output.accept_print_function()
-        return True, type
+        return True, SEMANTIC_TYPE.BOOL
 
-    def __math_comparison(self) -> tuple[bool, str | SEMANTIC_TYPE]:
-        self.__output.prepare_print_function("math_comparison")
-        polynomial = self.__math_polynomial()
-        if not polynomial[0]: # syntaxis inner error
-            self.__output.discard_print_function()
-            return False, ""
-
-        type = polynomial[1]
-
-        self.__check_expected_token([TOKEN_TYPES.OP_LESS_EQUAL, TOKEN_TYPES.OP_BIGGER_EQUAL ,TOKEN_TYPES.OP_BIGGER ,
-                                     TOKEN_TYPES.OP_LESS ,TOKEN_TYPES.OP_EQUAL ,TOKEN_TYPES.OP_NOT_EQUAL])
-
-        polynomial = self.__math_polynomial()
-        if not polynomial[0]: # syntax absence error
-            print_console(
-                f"Error -> TP syntax (Runtime): no math expression after comparison sign on line {self.__stream.get_line()}",
-                CONSOLE_COLORS.ERROR)
+    def __math_polynomial_wrapped(self) -> bool:
+        math = self.__math_polynomial()
+        if math[0] and (type(math[1]) is str):
+            self.__output.print_semantic_error(self.__stream.get_line(), math[1])
             exit(1)
 
-        type = expression_type(type, polynomial[1], TOKEN_TYPES.OP_EQUAL) # all comparisons for math comparison are
-                                                                          # similar for semantic
-
-        self.__output.accept_print_function()
-        return True, type
-
-    def __logical_comparison(self) -> tuple[bool, str | SEMANTIC_TYPE]:
-        self.__output.prepare_print_function("logical_comparison")
-
-        logical = self.__logical_expression()
-        if not logical[0]: # syntax inner error
-            self.__output.discard_print_function()
-            return False, ""
-        type = logical[1]
-        self.__check_expected_token([TOKEN_TYPES.OP_EQUAL, TOKEN_TYPES.OP_NOT_EQUAL])
-
-        logical = self.__logical_expression()
-        if not logical[0]: # syntax absence error
-            print_console(
-                f"Error -> TP syntax (Runtime): no logical expression after comparison sign on line {self.__stream.get_line()}",
-                CONSOLE_COLORS.ERROR)
-            exit(1)
-        type = expression_type(type, logical[1], TOKEN_TYPES.OP_EQUAL) # both comparison operators are
-                                                                       # similar for semantic
-
-        self.__output.accept_print_function()
-        return True, type
-
+        return math[0]
 
     def __math_polynomial(self) -> tuple[bool, str | SEMANTIC_TYPE]:
         self.__output.prepare_print_function("math_polynomial")
@@ -433,7 +416,7 @@ class Syntax:
 
         type = primary[1]
         if there_is_minus:
-            type = expression_type(token[1], type)
+            type = expression_type_unary(token[1], type)
 
         self.__output.accept_print_function()
         return True, type
@@ -474,16 +457,21 @@ class Syntax:
             self.__output.accept_print_function()
             return True, polynomial[1] # type return
 
-        if token[1] not in [VALUE_TYPES.INT, VALUE_TYPES.FLOAT, VALUE_TYPES.IDENTIFIER]:
+        if token[1] is VALUE_TYPES.IDENTIFIER:
+            var_type = self.__var_table.get(token[0])
+            if var_type is None:
+                var_type = "Using of undeclared variable: " + token[0]
+            elif var_type not in [SEMANTIC_TYPE.INT, SEMANTIC_TYPE.FLOAT]:
+                var_type = "Type missmatch: variable \'" + token[0] + "\' type " + var_type.value + ", expected type int/float"
+            self.__output.accept_print_function()
+            return True, var_type
+        elif token[1] in [VALUE_TYPES.INT, VALUE_TYPES.FLOAT]:
+            self.__output.accept_print_function()
+            return True, SEMANTIC_TYPE(token[1].value)
+        else:
             self.__stream.unget(1)
             self.__output.discard_print_function()
             return False, ""
-
-        self.__output.accept_print_function()
-
-        raise "unimplemented type check"
-        return True, "to implement"
-
 
 
     #  --------------------- --- ---------------------
@@ -512,6 +500,7 @@ class Syntax:
         var_type = self.__var_table.get(token[0])
         if var_type is None:
             self.__output.print_semantic_error(self.__stream.get_line(), "Using of undeclared variable: " + token[0])
+            exit(1)
 
         # check expression
         expession_type: SEMANTIC_TYPE
@@ -585,7 +574,7 @@ class Syntax:
         if token[1] not in [KEYWORDS.INPUT_INT, KEYWORDS.INPUT_FLOAT, KEYWORDS.INPUT_BOOL]:
             self.__stream.unget(1)
             self.__output.discard_print_function()
-            return False, KEYWORDS.INPUT_BOOL # any input is sufficient due to syntax stopping return
+            return False, SEMANTIC_TYPE.BOOL # any input is sufficient due to syntax stopping return
         input_token = token[1]
 
         # syntax ()
@@ -630,7 +619,7 @@ class Syntax:
         self.__body()
         self.__check_expected_token(KEYWORDS.WHILE)
 
-        if not self.__logical_expression():
+        if not self.__logical_expression_wrapped():
             # if logical_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
@@ -647,7 +636,7 @@ class Syntax:
             self.__output.discard_print_function()
             return False
 
-        if not self.__logical_expression():
+        if not self.__logical_expression_wrapped():
             # if logical_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
@@ -671,7 +660,7 @@ class Syntax:
             exit(1)
 
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
-        if not self.__logical_expression():
+        if not self.__logical_expression_wrapped():
             # if logical_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
@@ -698,7 +687,7 @@ class Syntax:
             self.__output.discard_print_function()
             return False
 
-        if not self.__logical_expression():
+        if not self.__logical_expression_wrapped():
             # if logical_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
@@ -724,7 +713,7 @@ class Syntax:
             self.__output.discard_print_function()
             return False
 
-        if not self.__logical_expression():
+        if not self.__logical_expression_wrapped():
             # if logical_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
@@ -758,19 +747,19 @@ class Syntax:
             self.__output.discard_print_function()
             return False
 
-        if not self.__math_polynomial():
+        if not self.__math_polynomial_wrapped():
             # if math_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
 
         self.__check_expected_token(TOKEN_TYPES.CURVE_L)
-
-        at_least_once: bool = self.__case()
+        cases_list: list[str] = []
+        at_least_once: bool = self.__case(cases_list)
         if not at_least_once:
             print_console(f"Error -> TP syntax (Runtime): no case in switch, on line {self.__stream.get_line()}", CONSOLE_COLORS.ERROR)
             exit(1)
 
-        while self.__case(): pass
+        while self.__case(cases_list): pass
 
         self.__default()
 
@@ -779,7 +768,7 @@ class Syntax:
         self.__output.accept_print_function()
         return True
 
-    def __case(self) -> bool:
+    def __case(self, cases_list: list[str]) -> bool:
         self.__output.prepare_print_function("case")
         if self.__stream.is_empty():
             self.__output.discard_print_function()
@@ -794,11 +783,19 @@ class Syntax:
         if token[1] != TOKEN_TYPES.OP_MINUS:
             self.__stream.unget(1)
 
-        self.__check_expected_token([VALUE_TYPES.INT, VALUE_TYPES.FLOAT])
+        key = self.__check_expected_token([VALUE_TYPES.INT, VALUE_TYPES.FLOAT])
         self.__check_expected_token(TOKEN_TYPES.COLON)
 
         self.__body()
         self.__output.accept_print_function()
+
+        # check uniquness of case
+        if key in cases_list:
+            print_console(f"WARNING: Duplicated case {key}, on line {self.__stream.get_line()}",
+                          CONSOLE_COLORS.WARNING)
+        else:
+            cases_list.append(key)
+
         return True
 
     def __default(self) -> bool:
@@ -826,23 +823,30 @@ class Syntax:
             self.__output.discard_print_function()
             return False
 
-        self.__flag_list()
+        flags_list: list[str] = []
+        self.__flag_list(flags_list)
 
-        at_least_once: bool = self.__flag_body()
+        at_least_once: bool = self.__flag_body(flags_list)
         if not at_least_once:
             print_console(f"Error -> TP syntax (Runtime): no flag body in flagIf, on line {self.__stream.get_line()}", CONSOLE_COLORS.ERROR)
             exit(1)
 
-        while not self.__stream.is_empty() and self.__flag_body(): pass
+        while not self.__stream.is_empty() and self.__flag_body(flags_list): pass
+
+        # check all flags was implemented
+        if len(flags_list) != 0:
+            self.__output.print_semantic_error(self.__stream.get_line(), f"Unimplemented flags in flagIf statement: {flags_list} - ")
+            exit(1)
 
         self.__output.accept_print_function()
         return True
 
-    def __flag_list(self) -> bool:
+    def __flag_list(self, list_to_fill: list[str]) -> bool:
         self.__output.prepare_print_function("flag_list")
         # error check is inside
         self.__check_expected_token(TOKEN_TYPES.SQUARE_L)
-        at_least_once: bool = self.__flag_declare()
+
+        at_least_once: bool = self.__flag_declare(list_to_fill)
         if not at_least_once:
             print_console(f"Error -> TP syntax (Runtime): no flag declaration in flagIf, on line {self.__stream.get_line()}",
                           CONSOLE_COLORS.ERROR)
@@ -851,7 +855,7 @@ class Syntax:
         token = self.__stream.get_token()
 
         while token[1] == TOKEN_TYPES.PARAM_SEPARATOR:
-            if not self.__flag_declare():
+            if not self.__flag_declare(list_to_fill):
                 print_console(
                     f"Error -> TP syntax (Runtime): no flag declaration after coma, on line {self.__stream.get_line()}",
                     CONSOLE_COLORS.ERROR)
@@ -866,40 +870,56 @@ class Syntax:
         self.__output.accept_print_function()
         return True
 
-    def __flag_declare(self) -> bool:
+    def __flag_declare(self, list_to_append: list[str]) -> bool:
         self.__output.prepare_print_function("flag_declare")
-        if not self.__flag():
+        flag = self.__flag()
+        if not flag[0]:
             self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.COLON)
-        if not self.__logical_expression():
+        if not self.__logical_expression_wrapped():
             # if logical_expression is false - then first value was incorrect
             self.__output.print_lexeme_error(self.__stream.get_line())
             exit(1)
 
+        # check semantic of existence of flag
+        if flag[1] in list_to_append:
+            self.__output.print_semantic_error(self.__stream.get_line(), f"Duplication of flag {flag[1]} in flag declaration list")
+            exit(1)
+        else:
+            list_to_append.append(flag[1])
+
         self.__output.accept_print_function()
         return True
 
-    def __flag(self) -> bool:
+    def __flag(self) -> tuple[bool, str]:
         self.__output.prepare_print_function("flag")
         token = self.__stream.get_token()
         if token[1] != TOKEN_TYPES.FLAG:
             self.__stream.unget(1)
             self.__output.discard_print_function()
-            return False
+            return False, ""
 
         self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
         self.__output.accept_print_function()
-        return True
+        return True, token[0]
 
-    def __flag_body(self) -> bool:
+    def __flag_body(self, list_of_unchecked_flags: list[str]) -> bool:
         self.__output.prepare_print_function("flag_body")
-        if not self.__flag():
+        flag = self.__flag()
+        if not flag[0]:
             self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.COLON)
 
         self.__body()
+
+        # check semantic
+        if flag[1] not in list_of_unchecked_flags:
+            self.__output.print_semantic_error(self.__stream.get_line(), f"{flag[1]} is undeclared or duplicates existing flag of flag-body")
+            exit(1)
+        else:
+            list_of_unchecked_flags.remove(flag[1])
 
         self.__output.accept_print_function()
         return True
@@ -955,5 +975,4 @@ def main_syntax():
 
 
 if __name__ == '__main__':
-
     main_syntax()

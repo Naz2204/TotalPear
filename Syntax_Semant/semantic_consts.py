@@ -1,13 +1,16 @@
 from enum import Enum
-from typing import overload, override
-
-from syntax_consts import TOKEN_TYPES
+from semantic_syntax_consts import TOKEN_TYPES, KEYWORDS
 
 class SEMANTIC_TYPE(Enum):
-    INT    = "int"
-    FLOAT  = "float"
+    INT    = "integer"
+    FLOAT  = "real"
     BOOL   = "bool"
 
+KEYWORDS_TO_SEMANTIC_TYPE: dict[KEYWORDS, SEMANTIC_TYPE] = {
+    KEYWORDS.INT:   SEMANTIC_TYPE.INT,
+    KEYWORDS.FLOAT: SEMANTIC_TYPE.FLOAT,
+    KEYWORDS.BOOL:  SEMANTIC_TYPE.BOOL
+}
 
 class SEMANTIC_MATH_OPERATOR(Enum):
     PLUS   = "+"
@@ -16,14 +19,14 @@ class SEMANTIC_MATH_OPERATOR(Enum):
     DIVIDE = "/"
     POWER  = "^"
 
-SEMANTIC_MATH_OPERATOR_VALUES = (x.value for x in SEMANTIC_MATH_OPERATOR)
+SEMANTIC_MATH_OPERATOR_VALUES = tuple(x.value for x in SEMANTIC_MATH_OPERATOR)
 
 class SEMANTIC_LOGICAL_OPERATOR(Enum):
     AND    = "and"
     OR     = "or"
     NOT    = "not"
 
-SEMANTIC_LOGICAL_OPERATOR_VALUES = (x.value for x in SEMANTIC_LOGICAL_OPERATOR)
+SEMANTIC_LOGICAL_OPERATOR_VALUES = tuple(x.value for x in SEMANTIC_LOGICAL_OPERATOR)
 
 class SEMANTIC_COMPARISON_OPERATOR(Enum):
     OP_EQUAL        = "=="
@@ -33,7 +36,7 @@ class SEMANTIC_COMPARISON_OPERATOR(Enum):
     OP_LESS         = "<"
     OP_BIGGER       = ">"
 
-SEMANTIC_COMPARISON_OPERATOR_VALUES = (x.value for x in SEMANTIC_COMPARISON_OPERATOR)
+SEMANTIC_COMPARISON_OPERATOR_VALUES = tuple(x.value for x in SEMANTIC_COMPARISON_OPERATOR)
 SEMANTIC_COMPARISON_OPERATOR_VALUES_NON_LOGIC = (
     SEMANTIC_COMPARISON_OPERATOR.OP_BIGGER_EQUAL,
     SEMANTIC_COMPARISON_OPERATOR.OP_LESS_EQUAL,
@@ -106,7 +109,7 @@ def expression_type (left: SEMANTIC_TYPE | str, right: SEMANTIC_TYPE | str,
     else: # both integer and op = {+, -, *}
         return SEMANTIC_TYPE.INT
 
-def expression_type (op: TOKEN_TYPES, right: SEMANTIC_TYPE | str) -> SEMANTIC_TYPE | str:
+def expression_type_unary (op: TOKEN_TYPES, right: SEMANTIC_TYPE | str) -> SEMANTIC_TYPE | str:
     if type(right) is str: return right # Monad
 
     op = TOKEN_TYPE_TO_SEMANTIC_OPERATION(op)

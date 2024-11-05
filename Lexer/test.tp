@@ -1,2 +1,4 @@
-if not tru {
-}
+// first - expected error of math after check of logic
+bool a = true;
+int c = 1;
+float b = inputBool("Mr") // semantic error математики

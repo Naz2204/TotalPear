@@ -29,7 +29,7 @@ class KEYWORDS(Enum):
     DEFAULT      = "default"
     FLAG_IF      = "flagIf"
 
-KEYWORDS_VALUES = (x.value for x in KEYWORDS)
+KEYWORDS_VALUES = tuple(x.value for x in KEYWORDS)
 
 class TOKEN_TYPES(Enum):
     # Math
@@ -76,4 +76,4 @@ class VALUE_TYPES(Enum):
     BOOL = "boolean"
     STRING = "string"
 
-VALUE_TYPES_VALUES = (x.value for x in VALUE_TYPES)
+VALUE_TYPES_VALUES = tuple(x.value for x in VALUE_TYPES)

@@ -1,3 +1,5 @@
-a = {"p": 1}
+a = [1]
 
-print(a['b'])
+a.append(2)
+
+print(a)
