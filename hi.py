@@ -1,8 +1,5 @@
-class A:
-    def __init__(self): pass
-    def a(self):
-        A.a.a = 'A'
-        print("A.a.a = ", A.a.a)
+a = [(1, 2), (3, 4), 5]
 
-a = A()
-a.a()
+for i, value in enumerate(a):
+    print(i, value)
+

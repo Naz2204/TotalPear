@@ -1,8 +1,14 @@
-from reverse_syntax_consts import CONSOLE_COLORS, KEYWORDS, TOKEN_TYPES, VALUE_TYPES
+import json
+
+from reverse_table import Syntax_var_table, Label_table
+from Syntax_Semant.semantic_syntax_consts import FILE_TYPE_OUT
+from reverse_syntax_consts import CONSOLE_COLORS, KEYWORDS, TOKEN_TYPES, VALUE_TYPES, RPN_TYPES
+from Lexer.lexer_print import print_table as lexer_print_table
+
+FILE_TYPE_OUT = ".postfix"
 
 def print_console(message: str, message_type: CONSOLE_COLORS = CONSOLE_COLORS.NORMAL):
     print(message_type.value + message + CONSOLE_COLORS.NORMAL.value)
-
 
 class Syntax_print:
     def __init__(self, is_verbose: bool):
@@ -103,11 +109,132 @@ class Syntax_print:
 
 # ----------------------------------------------------------------
 
-class RPN_print:
+class RPN_out:
     def __init__(self, is_verbose: bool):
-        if not is_verbose:
-            RPN_print.prepare_print_function = lambda obj, text: None
-            RPN_print.discard_print_function = lambda obj: None
-            RPN_print.accept_print_function  = lambda obj: None
+        self.__RPN_table: list[tuple[str, str]] = []
+        self.__operators_buffer: list[tuple[TOKEN_TYPES, int]] = []
+        self.__last_index = 0
 
-    def write_to_file(self, ): pass
+        # якщо пріоритет токену на вході більше ніж у буфері - то більший вибиває менше
+        # менше число не може вибити більше
+        # більше число вибиває менше
+
+        # таким чином більший пріоритет обрахунку = менше число-пріоритет
+
+        # 1 + 2 ^ 3 -> +: 2, ^: 1
+        # 1 2 3 ^ +       stack: +,     in: ^
+
+        self.__priority_dict: dict[TOKEN_TYPES, int] = {
+            TOKEN_TYPES.OP_POWER:   1,
+
+            TOKEN_TYPES.OP_UMINUS:  2,
+            TOKEN_TYPES.OP_NOT:     2,
+
+            TOKEN_TYPES.OP_MULTI:   3,
+            TOKEN_TYPES.OP_DIVIDE:  3,
+            TOKEN_TYPES.OP_AND:     3,
+
+            TOKEN_TYPES.OP_PLUS:    4,
+            TOKEN_TYPES.OP_MINUS:   4,
+            TOKEN_TYPES.OP_OR:      4,
+
+            TOKEN_TYPES.OP_BIGGER:       5,
+            TOKEN_TYPES.OP_BIGGER_EQUAL: 5,
+            TOKEN_TYPES.OP_LESS:         5,
+            TOKEN_TYPES.OP_LESS_EQUAL:   5,
+            TOKEN_TYPES.OP_EQUAL:        5,
+            TOKEN_TYPES.OP_NOT_EQUAL:    5,
+
+            TOKEN_TYPES.BRACKET_R:          6,
+            TOKEN_TYPES.BRACKET_L:          7,
+
+            TOKEN_TYPES.OP_OUT_STR:   20,
+            TOKEN_TYPES.OP_OUT_INT:   20,
+            TOKEN_TYPES.OP_OUT_FLOAT: 20,
+            TOKEN_TYPES.OP_OUT_BOOL:  20,
+
+            TOKEN_TYPES.OP_INPUT_INT:   21,
+            TOKEN_TYPES.OP_INPUT_FLOAT: 21,
+            TOKEN_TYPES.OP_INPUT_BOOL:  21,
+
+            # TOKEN_TYPES.OP_CAST_FLOAT_TO_INT: 30,
+            # TOKEN_TYPES.OP_CAST_INT_TO_FLOAT: 30,
+
+            TOKEN_TYPES.OP_ASSIGN: 50,
+
+            TOKEN_TYPES.OP_JMP: 60,
+            TOKEN_TYPES.OP_JF: 60,
+            TOKEN_TYPES.OP_JT: 60,
+
+            TOKEN_TYPES.END_STATEMENT: 100,
+
+            TOKEN_TYPES.CURVE_R: 199,
+            TOKEN_TYPES.CURVE_L: 200,
+        }
+
+
+        if not is_verbose:
+            RPN_out.print_to_console = lambda obj : None
+
+    def __del__(self):
+        self.print_to_console()
+
+    def __buf_to_table(self): pass
+
+
+    def add(self, token_type: RPN_TYPES | TOKEN_TYPES | VALUE_TYPES, lexeme: str | None = None) -> int:
+        """
+        :param lexeme: lexeme to add to RPN table
+        :param token_type: type of the token
+        :return: index af added lexeme
+        """
+        print(token_type.value, lexeme)
+        if token_type in TOKEN_TYPES:
+            if token_type not in [TOKEN_TYPES.END_STATEMENT, TOKEN_TYPES.CURVE_L, TOKEN_TYPES.CURVE_R]:
+                priority = self.__priority_dict[token_type]
+                if token_type is TOKEN_TYPES.BRACKET_L:
+                    self.__operators_buffer.append((token_type, priority))
+                else:
+                    while len(self.__operators_buffer) > 0 and self.__operators_buffer[-1][1] < priority:
+                        lexeme = self.__operators_buffer.pop(-1)[0]
+                        self.__RPN_table.append((lexeme.value[1], lexeme.value[0]))
+                        self.__last_index += 1
+
+                    if  token_type is TOKEN_TYPES.BRACKET_R and \
+                        self.__operators_buffer[-1][0] is TOKEN_TYPES.BRACKET_L:
+                        self.__operators_buffer.pop(-1)
+                    else:
+                        self.__operators_buffer.append((token_type, priority))
+            else:
+                while len(self.__operators_buffer) > 0:
+                    buf = self.__operators_buffer.pop(-1)[0]
+                    self.__RPN_table.append((buf.value[1], buf.value[0]))
+                    self.__last_index += 1
+
+        else:
+            self.__RPN_table.append((lexeme, token_type.value))
+            self.__last_index += 1
+
+        return self.__last_index - 1
+
+    def print_to_console(self) -> None:
+        temp_table = []
+        for i, value in enumerate(self.__RPN_table):
+            temp_table.append((i, value))
+        lexer_print_table([["№", "postfixCode"]] + temp_table)
+
+
+    def write_to_file(self, dir_path: str, file_name: str, var_table: Syntax_var_table, label_table: Label_table) -> None:
+        to_write: dict[str, list] = {
+            "var_table": var_table,
+            "label_table": label_table,
+            "code": self.__RPN_table
+        }
+        try:
+            with open(dir_path + "/" + file_name + FILE_TYPE_OUT, "w") as file:
+                json.dump(to_write, file, indent=4)
+        except:
+            print_console("Error -> TP Syntax (Finishing): error occurred while writing code to file",
+                          CONSOLE_COLORS.ERROR)
+            exit(1)
+        print_console("Success -> code successfully written to file ", CONSOLE_COLORS.OK)

@@ -31,7 +31,6 @@ class Syntax_input:
             elif token_type in VALUE_TYPES_VALUES:
                 return value, VALUE_TYPES(token_type)
             else:
-            # FIXME fix if value errors start to raise too often
                 return value, TOKEN_TYPES(token_type, value)
         except ValueError:
             print_console("Error -> TP (Syntax): Unknown token, incorrect lexer results", CONSOLE_COLORS.ERROR)

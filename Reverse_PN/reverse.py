@@ -5,7 +5,8 @@ from reverse_semantic_consts import *
 from reverse_print import *
 from reverse_stream import *
 from reverse_syntax_consts import *
-from reverse_var_table import Syntax_var_table
+from reverse_table import Syntax_var_table
+
 
 sys.path.append('../Lexer/')
 from Lexer.lexer import lexer_run as lexer
@@ -14,22 +15,24 @@ from Lexer.lexer import lexer_run as lexer
 # TODO: check returns and ungets and exits add identation, update print_consol to some syntax_print
 
 class Syntax:
-    def __init__(self, stream: Syntax_input, output: Syntax_print, var_table: Syntax_var_table):
-        self.__stream = stream
-        self.__output = output
-        self.__var_table = var_table
+    def __init__(self, stream: Syntax_input, output: Syntax_print, var_table: Syntax_var_table, label_table: Label_table, rpn_out: RPN_out):
+        self.__stream      = stream
+        self.__output      = output
+        self.__var_table   = var_table
+        self.__label_table = label_table
+        self.__code_table  = rpn_out
 
     def run(self):
         self.__statement_list()
 
     def __check_expected_token(self,
                                expected_tokens: list[KEYWORDS | TOKEN_TYPES | VALUE_TYPES] |
-                                                     KEYWORDS | TOKEN_TYPES | VALUE_TYPES) -> str:
+                                                     KEYWORDS | TOKEN_TYPES | VALUE_TYPES) -> tuple[str, TOKEN_TYPES | KEYWORDS | VALUE_TYPES]:
         token = self.__stream.get_token()
         expected_tokens = [expected_tokens] if type(expected_tokens) is not list else expected_tokens
 
         if token[1] in expected_tokens:
-            return token[0]
+            return token
 
         self.__output.print_incorrect_found_error(token, expected_tokens, self.__stream.get_line())
         exit(1)
@@ -101,7 +104,7 @@ class Syntax:
             return False
 
         keyword_type = KEYWORDS_TO_SEMANTIC_TYPE[token[1]] # token either float, int or bool
-        var_name = self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
+        var_name = self.__check_expected_token(VALUE_TYPES.IDENTIFIER)[0]
 
         # -- check declaration
         token = self.__stream.get_token()
@@ -115,7 +118,10 @@ class Syntax:
 
         self.__stream.unget(1)
 
+        self.__code_table.add(RPN_TYPES.L_VAL, var_name)
+
         self.__check_expected_token(TOKEN_TYPES.OP_ASSIGN)
+        self.__code_table.add(TOKEN_TYPES.OP_ASSIGN)
 
         semantic_type: SEMANTIC_TYPE
         input_ok = self.__input_statement()
@@ -123,6 +129,7 @@ class Syntax:
             semantic_type = input_ok[1]
         else:
             semantic_type = self.__expression()
+
 
         # semantic check
         math_cast_init = keyword_type in (SEMANTIC_TYPE.FLOAT, SEMANTIC_TYPE.INT) and semantic_type in (SEMANTIC_TYPE.FLOAT, SEMANTIC_TYPE.INT)
@@ -142,49 +149,57 @@ class Syntax:
             exit(1)
 
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__code_table.add(TOKEN_TYPES.END_STATEMENT)
         self.__output.accept_print_function()
         return True
 
     #  --------------------- expression ---------------------
+    def __expression_next_is_math(self) -> bool:
+        start_read = self.__stream.get_current_token_number()
+
+        while self.__stream.get_token()[1] is TOKEN_TYPES.BRACKET_L:
+            pass
+        self.__stream.unget(1)
+        token = self.__stream.get_token()
+
+        is_math: bool = token[1] in [
+            VALUE_TYPES.INT,      VALUE_TYPES.FLOAT,
+            TOKEN_TYPES.OP_PLUS,  TOKEN_TYPES.OP_MINUS, TOKEN_TYPES.OP_DIVIDE,
+            TOKEN_TYPES.OP_MULTI, TOKEN_TYPES.OP_POWER
+        ]
+        is_math = is_math or self.__var_table.get(token[0]) in [SEMANTIC_TYPE.INT, SEMANTIC_TYPE.FLOAT]
+
+        end_read = self.__stream.get_current_token_number()
+        self.__stream.unget(end_read - start_read) # refresh before reading
+
+        return is_math
+
     def __expression(self) -> SEMANTIC_TYPE:
         # error check is inside
         # end of expression monad
         self.__output.prepare_print_function("expression")
 
-        start_read = self.__stream.get_current_token_number()
+        # choose math or logical expression
+        is_math = self.__expression_next_is_math()
+        if is_math:
+            expression = self.__math_polynomial()
+        else:
+            expression = self.__logical_expression()
 
-        polynomial = self.__math_polynomial()
-        end_read = self.__stream.get_current_token_number()
-        result: tuple[tuple[bool, str | SEMANTIC_TYPE], int] = (polynomial, end_read)
-
-        self.__stream.unget(end_read - start_read) # refresh before reading math_polynomial
-
-        logical = self.__logical_expression()
-        end_read = self.__stream.get_current_token_number()
-
-        if result[1] < end_read:    # use logical
-            result = (logical, end_read)
-        elif result[1] == end_read: # choose by semantic (correctness?)
-            if not result[0][0] or (type(result[0][1]) is str):
-                result = (logical, end_read)
-        else:                       # use math
-            for _ in range(result[1] - end_read):
-                self.__stream.get_token()
-
-        # check error
-        # result[0][0] is first because it is produced by return of (False, "") - which also sets result[0][1]
-        if not result[0][0]: # 1.0
+        # check errors
+        if not expression[0]: # bool - false (no value in expression)
+            # TODO: can be optimized in __expression_next_in_math by checking if the value can be logical or math
             print_console(
                 f"Error -> TP syntax (Runtime): no valid expression on line {self.__stream.get_line()}",
                 CONSOLE_COLORS.ERROR)
             exit(1)
-        elif type(result[0][1]) is str: # 0.1
-            self.__output.print_semantic_error(self.__stream.get_line(), result[0][1])
+        elif type(expression[1]) is str: # 0.1
+            self.__output.print_semantic_error(self.__stream.get_line(), expression[1])
             exit(1)
 
         # is correct
         self.__output.accept_print_function()
-        return result[0][1]
+        return expression[1]
 
     def __logical_expression_wrapped(self) -> bool:
         logical = self.__logical_expression()
@@ -205,6 +220,7 @@ class Syntax:
 
         token = self.__stream.get_token()
         while token[1] == TOKEN_TYPES.OP_OR:
+            self.__code_table.add(token[1])
             logical = self.__logical2()
             if not logical[0]:
                 print_console(f"Error -> TP syntax (Runtime): no logical expression after or operator on line {self.__stream.get_line()}",
@@ -226,6 +242,7 @@ class Syntax:
 
         token = self.__stream.get_token()
         while token[1] == TOKEN_TYPES.OP_AND:
+            self.__code_table.add(token[1])
             logical = self.__logical3()
             if not logical[0]: # syntax absence error
                 print_console(f"Error -> TP syntax (Runtime): no logical expression after and operator on line {self.__stream.get_line()}",
@@ -244,6 +261,7 @@ class Syntax:
         token = self.__stream.get_token()
         there_is_not: bool = False
         while token[1] == TOKEN_TYPES.OP_NOT:
+            self.__code_table.add(token[1])
             there_is_not = True
             token = self.__stream.get_token()
         self.__stream.unget(1)
@@ -276,18 +294,21 @@ class Syntax:
 
         token = self.__stream.get_token()
         if token[1] == TOKEN_TYPES.BRACKET_L:
+            self.__code_table.add(TOKEN_TYPES.BRACKET_L)
             logical = self.__logical_expression()
             if not logical[0]: # syntax inner error
                 self.__stream.unget(1)
                 self.__output.discard_print_function()
                 return False, ""
             self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+            self.__code_table.add(TOKEN_TYPES.BRACKET_R)
             self.__output.accept_print_function()
             return True, logical[1]
 
 
         # check var and value
         if token[1] is VALUE_TYPES.IDENTIFIER:
+            self.__code_table.add(token[1], token[0])
             var_type = self.__var_table.get(token[0])
             if var_type is None:
                 var_type = "Using of undeclared variable: " + token[0]
@@ -296,6 +317,7 @@ class Syntax:
             self.__output.accept_print_function()
             return True, var_type # monad control
         elif token[1] is VALUE_TYPES.BOOL:
+            self.__code_table.add(token[1], token[0])
             self.__output.accept_print_function()
             return True, SEMANTIC_TYPE.BOOL
         else: # bad var and value
@@ -312,6 +334,7 @@ class Syntax:
             return False, ""
 
         # --------------------------------------------------------
+        self.__code_table.add(TOKEN_TYPES.BRACKET_L) # left | is the same as (
 
         left = self.__expression()
 
@@ -320,7 +343,8 @@ class Syntax:
         if left is SEMANTIC_TYPE.BOOL:
             allow_operator = [TOKEN_TYPES.OP_EQUAL, TOKEN_TYPES.OP_NOT_EQUAL]
 
-        self.__check_expected_token(allow_operator)
+        token = self.__check_expected_token(allow_operator)
+        self.__code_table.add(token[1])
 
         right = self.__expression()
 
@@ -336,6 +360,7 @@ class Syntax:
         # --------------------------------------------------------
 
         self.__check_expected_token(TOKEN_TYPES.COMPARISON_BRACKET)
+        self.__code_table.add(TOKEN_TYPES.BRACKET_R) # right | is the same as )
         self.__output.accept_print_function()
         return True, SEMANTIC_TYPE.BOOL
 
@@ -358,6 +383,7 @@ class Syntax:
 
         token = self.__stream.get_token()
         while token[1] in [TOKEN_TYPES.OP_PLUS, TOKEN_TYPES.OP_MINUS]:
+            self.__code_table.add(token[1])
             monomial = self.__math_monomial()
             if not monomial[0]: # syntax error absence
                 print_console(f"Error -> TP syntax (Runtime): no monomial after {token[1].value} on line {self.__stream.get_line()}",
@@ -404,6 +430,7 @@ class Syntax:
 
         token = self.__stream.get_token()
         while token[1] in [TOKEN_TYPES.OP_MULTI, TOKEN_TYPES.OP_DIVIDE]:
+            self.__code_table.add(token[1])
             primary = self.__math_primary1()
             if not primary[0]: # syntax error absent
                 print_console(f"Error -> TP syntax (Runtime): no continuation after {token[1].value} on line {self.__stream.get_line()}",
@@ -412,6 +439,7 @@ class Syntax:
             type = expression_type(type, primary[1], token[1])
             self.__check_throw_zero_division(token[1])
             token = self.__stream.get_token()
+
         self.__stream.unget(1)
         self.__output.accept_print_function()
         return True, type
@@ -421,6 +449,7 @@ class Syntax:
         token = self.__stream.get_token()
         there_is_minus: bool = False
         while token[1] == TOKEN_TYPES.OP_MINUS:
+            self.__code_table.add(TOKEN_TYPES.OP_UMINUS)
             there_is_minus = True
             token = self.__stream.get_token()
         self.__stream.unget(1)
@@ -455,6 +484,7 @@ class Syntax:
 
         token = self.__stream.get_token()
         if token[1] == TOKEN_TYPES.OP_POWER:
+            self.__code_table.add(token[1])
             primary = self.__math_primary1()
             type = expression_type(type, primary[1], token[1])
             if not primary[0]: # syntax error absent
@@ -472,16 +502,19 @@ class Syntax:
         self.__output.prepare_print_function("math_primary3")
         token = self.__stream.get_token()
         if token[1] == TOKEN_TYPES.BRACKET_L:
+            self.__code_table.add(TOKEN_TYPES.BRACKET_L)
             polynomial = self.__math_polynomial()
             if not polynomial[0]: # syntax inner error
                 self.__stream.unget(1)
                 self.__output.discard_print_function()
                 return False, ""
             self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+            self.__code_table.add(TOKEN_TYPES.BRACKET_R)
             self.__output.accept_print_function()
             return True, polynomial[1] # type return
 
         if token[1] is VALUE_TYPES.IDENTIFIER:
+            self.__code_table.add(RPN_TYPES.R_VAL, token[0])
             var_type = self.__var_table.get(token[0])
             if var_type is None:
                 var_type = "Using of undeclared variable: " + token[0]
@@ -490,6 +523,7 @@ class Syntax:
             self.__output.accept_print_function()
             return True, var_type
         elif token[1] in [VALUE_TYPES.INT, VALUE_TYPES.FLOAT]:
+            self.__code_table.add(token[1], token[0])
             self.__output.accept_print_function()
             return True, SEMANTIC_TYPE(token[1].value)
         else:
@@ -506,6 +540,7 @@ class Syntax:
             self.__output.discard_print_function()
             return False
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__code_table.add(TOKEN_TYPES.END_STATEMENT)
         self.__output.accept_print_function()
         return True
 
@@ -518,7 +553,9 @@ class Syntax:
             self.__output.discard_print_function()
             return False
 
+        self.__code_table.add(token[1], token[0])
         self.__check_expected_token(TOKEN_TYPES.OP_ASSIGN)
+        self.__code_table.add(TOKEN_TYPES.OP_ASSIGN)
 
         # check existence of var
         var_type = self.__var_table.get(token[0])
@@ -563,18 +600,23 @@ class Syntax:
 
         self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
         self.__check_expected_token(TOKEN_TYPES.END_STATEMENT)
+        self.__code_table.add(TOKEN_TYPES.END_STATEMENT)
         self.__output.accept_print_function()
         return True
 
     def __print_list(self) -> bool:
         self.__output.prepare_print_function("print_list")
-        self.__printable() # error check is inside
+        self.__printable() # error check is inside and code generation
 
         token = self.__stream.get_token()
 
         while token[1] == TOKEN_TYPES.PARAM_SEPARATOR:
+            self.__code_table.add(TOKEN_TYPES.END_STATEMENT) # analagous for comma
             self.__printable()
             token = self.__stream.get_token()
+
+        # self.__code_table.add(TOKEN_TYPES.END_STATEMENT) # - REDUNDANT
+
         self.__stream.unget(1)
         self.__output.accept_print_function()
         return True
@@ -584,11 +626,26 @@ class Syntax:
         # error check is inside
         token = self.__stream.get_token()
         if token[1] == VALUE_TYPES.STRING:
+            self.__code_table.add(token[1], token[0])
+            self.__code_table.add(TOKEN_TYPES.OP_OUT_STR)
             self.__output.accept_print_function()
             return True
 
         self.__stream.unget(1)
-        self.__expression()
+        semantic_type = self.__expression()
+        match semantic_type:
+            case SEMANTIC_TYPE.INT:
+                self.__code_table.add(TOKEN_TYPES.OP_OUT_INT)
+            case SEMANTIC_TYPE.FLOAT:
+                self.__code_table.add(TOKEN_TYPES.OP_OUT_FLOAT)
+            case SEMANTIC_TYPE.BOOL:
+                self.__code_table.add(TOKEN_TYPES.OP_OUT_BOOL)
+            case _:
+                print_console(
+                "Error -> TP syntax (Internal): error on print resolution",
+                CONSOLE_COLORS.ERROR)
+                exit(1)
+
         self.__output.accept_print_function()
         return True
 
@@ -607,16 +664,22 @@ class Syntax:
         if token[1] != VALUE_TYPES.STRING:
             self.__stream.unget(1)
         self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
+        self.__code_table.add(token[1], token[0])
+        self.__code_table.add(TOKEN_TYPES.OP_OUT_STR)
+
 
         # semantic get type
         input_type: SEMANTIC_TYPE
         match input_token:
             case KEYWORDS.INPUT_INT:
                 input_type = SEMANTIC_TYPE.INT
+                self.__code_table.add(TOKEN_TYPES.OP_INPUT_INT)
             case KEYWORDS.INPUT_FLOAT:
                 input_type = SEMANTIC_TYPE.FLOAT
+                self.__code_table.add(TOKEN_TYPES.OP_INPUT_FLOAT)
             case KEYWORDS.INPUT_BOOL:
                 input_type = SEMANTIC_TYPE.BOOL
+                self.__code_table.add(TOKEN_TYPES.OP_INPUT_BOOL)
             case _:
                 print_console(f"Error -> TP syntax (Internal error): should be unreachable input type", CONSOLE_COLORS.ERROR)
                 exit(1)
@@ -807,7 +870,7 @@ class Syntax:
         if token[1] != TOKEN_TYPES.OP_MINUS:
             self.__stream.unget(1)
 
-        key = self.__check_expected_token([VALUE_TYPES.INT, VALUE_TYPES.FLOAT])
+        key = self.__check_expected_token([VALUE_TYPES.INT, VALUE_TYPES.FLOAT])[0]
         self.__check_expected_token(TOKEN_TYPES.COLON)
 
         self.__body()
@@ -927,7 +990,7 @@ class Syntax:
             self.__output.discard_print_function()
             return False, ""
 
-        flag_id = self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
+        flag_id = self.__check_expected_token(VALUE_TYPES.IDENTIFIER)[0]
         self.__output.accept_print_function()
         return True, flag_id
 
@@ -987,7 +1050,7 @@ def process_start_args() -> tuple[str, bool] | None:
     return file_path_param, len(startup_args) == 3
 
 
-def main_syntax():
+def main_revers():
     args: tuple[str, bool] | None = process_start_args()
     if args is None: exit(1)
 
@@ -999,9 +1062,11 @@ def main_syntax():
     syntax_stream = Syntax_input(lexer_result)
     syntax_output = Syntax_print(False)
     syntax_var_table = Syntax_var_table()
-    syntax = Syntax(syntax_stream, syntax_output, syntax_var_table)
+    label_table = Label_table()
+    rpn_out = RPN_out(is_verbose)
+    syntax = Syntax(syntax_stream, syntax_output, syntax_var_table, label_table, rpn_out)
     syntax.run()
 
 
 if __name__ == '__main__':
-    main_syntax()
+    main_revers()
