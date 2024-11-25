@@ -1,10 +1,11 @@
-from semantic_syntax_var_table import Syntax_var_table
-from semantic_syntax_stream   import *
-from semantic_syntax_print    import *
-from semantic_syntax_consts   import *
-from semantic_consts import *
-import sys
 import os
+import sys
+
+from semantic_consts import *
+from semantic_print import *
+from semantic_stream import *
+from semantic_syntax_consts import *
+from semantic_var_table import Syntax_var_table
 
 sys.path.append('../Lexer/')
 from Lexer.lexer   import lexer_run as lexer
@@ -183,6 +184,7 @@ class Syntax:
             exit(1)
 
         # is correct
+        self.__output.accept_print_function()
         return result[0][1]
 
     def __logical_expression_wrapped(self) -> bool:
@@ -261,7 +263,7 @@ class Syntax:
 
         type = logical[1]
         if there_is_not:
-            type = expression_type_unary(token[1], type)
+            type = expression_type_unary(TOKEN_TYPES.OP_NOT, type)
         self.__output.accept_print_function()
         return True, type
 
@@ -370,6 +372,28 @@ class Syntax:
         self.__output.accept_print_function()
         return True, type
 
+    def __check_throw_zero_division(self, operator: TOKEN_TYPES) -> None:
+        '''
+        no throw - auto exit on error
+        uses indirect way of acquiring token
+        '''
+        if operator != TOKEN_TYPES.OP_DIVIDE: return
+        self.__stream.unget(1) # operator number
+        value, _ = self.__stream.get_token()
+        value = value.split(".")
+
+        value_is_bad_int = all(x == '0' for x in value[0]) # yet undone
+        # len(value) == 2 - should be first in checks (at least before value[1])
+        value_is_bad_float = len(value) == 2 and value_is_bad_int and all(x == '0' for x in value[1])
+        value_is_bad_int = value_is_bad_int and len(value) == 1 
+            
+        value_is_bad = value_is_bad_float or value_is_bad_int
+        if value_is_bad:
+            self.__output.print_semantic_error(self.__stream.get_line(), "Zero division")
+            exit(1)
+
+
+
     def __math_monomial(self) -> tuple[bool, str | SEMANTIC_TYPE]:
         # ceil error checker for other math that is lower in recursion
         self.__output.prepare_print_function("math_monomial")
@@ -387,6 +411,7 @@ class Syntax:
                               CONSOLE_COLORS.ERROR)
                 exit(1)
             type = expression_type(type, primary[1], token[1])
+            self.__check_throw_zero_division(token[1])
             token = self.__stream.get_token()
         self.__stream.unget(1)
         self.__output.accept_print_function()
@@ -416,7 +441,7 @@ class Syntax:
 
         type = primary[1]
         if there_is_minus:
-            type = expression_type_unary(token[1], type)
+            type = expression_type_unary(TOKEN_TYPES.OP_MINUS, type)
 
         self.__output.accept_print_function()
         return True, type
@@ -831,10 +856,13 @@ class Syntax:
             print_console(f"Error -> TP syntax (Runtime): no flag body in flagIf, on line {self.__stream.get_line()}", CONSOLE_COLORS.ERROR)
             exit(1)
 
+        # TODO: check if can be optimized - remove is_empty here and in all other places due to usage of EOF token in input stream
         while not self.__stream.is_empty() and self.__flag_body(flags_list): pass
 
         # check all flags was implemented
         if len(flags_list) != 0:
+            flags_list = list("#" + x for x in flags_list)
+            flags_list = str(flags_list)[1:-1]
             self.__output.print_semantic_error(self.__stream.get_line(), f"Unimplemented flags in flagIf statement: {flags_list} - ")
             exit(1)
 
@@ -900,9 +928,9 @@ class Syntax:
             self.__output.discard_print_function()
             return False, ""
 
-        self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
+        flag_id = self.__check_expected_token(VALUE_TYPES.IDENTIFIER)
         self.__output.accept_print_function()
-        return True, token[0]
+        return True, flag_id
 
     def __flag_body(self, list_of_unchecked_flags: list[str]) -> bool:
         self.__output.prepare_print_function("flag_body")
@@ -925,7 +953,7 @@ class Syntax:
         return True
 
 
-def process_start_args() -> str | None:
+def process_start_args() -> tuple[str, bool] | None:
     """
     :return: file path
     """
@@ -935,7 +963,7 @@ def process_start_args() -> str | None:
     if len(startup_args) < 2:
         print_console("Error -> TP syntax (Startup): no file was provided", CONSOLE_COLORS.ERROR)
         return None
-    if len(startup_args) > 2:
+    if len(startup_args) > 2 and startup_args[2] != "-v":
         print_console("Error -> TP syntax (Startup): too many parameters were provided", CONSOLE_COLORS.ERROR)
         return None
 
@@ -957,18 +985,20 @@ def process_start_args() -> str | None:
         print_console("Error -> TP syntax (Startup): incorrect file type", CONSOLE_COLORS.ERROR)
         return None
 
-    return file_path_param
+    return file_path_param, len(startup_args) == 3
 
 
 def main_syntax():
-    file_path: str | None = process_start_args()
-    if file_path is None:
-        exit(1)
+    args: tuple[str, bool] | None = process_start_args()
+    if args is None: exit(1)
+
+    file_path: str   = args[0]
+    is_verbose: bool = args[1]
 
     # ----------------------------------------------
     lexer_result: tuple[dict, dict, list] = lexer(file_path)
     syntax_stream = Syntax_input(lexer_result)
-    syntax_output = Syntax_print()
+    syntax_output = Syntax_print(is_verbose)
     syntax_var_table = Syntax_var_table()
     syntax = Syntax(syntax_stream, syntax_output, syntax_var_table)
     syntax.run()

@@ -1,4 +1,4 @@
-from semantic_syntax_print import print_console
+from semantic_print import print_console
 from semantic_syntax_consts import *
 
 class Syntax_input:

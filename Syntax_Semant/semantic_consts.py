@@ -51,7 +51,6 @@ SEMANTIC_COMPARISON_OPERATOR_VALUES_LOGIC = (
 
 def TOKEN_TYPE_TO_SEMANTIC_OPERATION(token_type: TOKEN_TYPES) -> SEMANTIC_MATH_OPERATOR       \
   | SEMANTIC_LOGICAL_OPERATOR | SEMANTIC_COMPARISON_OPERATOR | None:
-
     token_value = token_type.value[1]
     if token_value in SEMANTIC_MATH_OPERATOR_VALUES:
         return SEMANTIC_MATH_OPERATOR(token_value)
@@ -88,11 +87,9 @@ def expression_type (left: SEMANTIC_TYPE | str, right: SEMANTIC_TYPE | str,
         )
 
     # operator error - type
-    if math_type and (type(op) is SEMANTIC_LOGICAL_OPERATOR):
-        return "Incorrect type of operator (should be arithmetic)"
-    elif bool_type and (type(op) is SEMANTIC_MATH_OPERATOR):
+    if   bool_type and (type(op) is not SEMANTIC_LOGICAL_OPERATOR):
         return "Incorrect type of operator (should be logical)"
-    elif bool_type and type(op) is not SEMANTIC_MATH_OPERATOR:
+    elif math_type and (type(op) is not SEMANTIC_MATH_OPERATOR):
         return "Incorrect type of operator (should be arithmetic)"
     elif bool_type and (op in SEMANTIC_COMPARISON_OPERATOR_VALUES_NON_LOGIC):
         return "Incorrect type of comparison operator (should be == or != for logical operands)"
