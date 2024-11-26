@@ -225,6 +225,7 @@ class RPN_out:
             "label_table": label_table.get_table(),
             "code": self.__RPN_table
         }
+
         try:
             with open("Stack_machine" + "/" + file_name + FILE_TYPE_OUT, "w") as file:
                 json.dump(to_write, file, indent=4)

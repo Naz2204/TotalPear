@@ -593,7 +593,7 @@
             "op_assign"
         ],
         [
-            "to_play",
+            "r-value",
             "ident"
         ],
         [
@@ -1301,7 +1301,7 @@
             "op_not"
         ],
         [
-            "z",
+            "r-value",
             "ident"
         ],
         [
