@@ -319,7 +319,7 @@ class Syntax:
 
         # check var and value
         if token[1] is VALUE_TYPES.IDENTIFIER:
-            self.__code_table.add(token[1], RPN_TYPES.R_VAL.value)
+            self.__code_table.add(RPN_TYPES.R_VAL, token[0])
             var_type = self.__var_table.get(token[0])
             if var_type is None:
                 var_type = "Using of undeclared variable: " + token[0]

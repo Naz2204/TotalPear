@@ -593,8 +593,8 @@
             "op_assign"
         ],
         [
-            "r-value",
-            "ident"
+            "to_play",
+            "r-value"
         ],
         [
             ":label10",
@@ -1301,8 +1301,8 @@
             "op_not"
         ],
         [
-            "r-value",
-            "ident"
+            "z",
+            "r-value"
         ],
         [
             "or",
