@@ -28,7 +28,7 @@ class Label_table:
         self.__index: int = 0
         self.__UNDEFINED: int = -1
 
-    def add(self) -> int:
+    def make_label(self) -> int:
         self.__table.append([self.__PREFIX + str(self.__index), self.__UNDEFINED])
         old_index = self.__index
         self.__index += 1
@@ -36,6 +36,13 @@ class Label_table:
 
     def change(self, index: int, position: int) -> None:
         self.__table[index][1] = position
+
+    def get_label(self, index: int) -> str:
+        to_return: str = ""
+        try:
+            to_return = self.__table[index][0]
+        except IndexError: pass
+        return to_return
 
     def print(self) ->  None:
         lexer_print_table([["Label name", "Position"]] + self.__table)

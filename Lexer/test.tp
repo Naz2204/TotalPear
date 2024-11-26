@@ -1,2 +1,68 @@
-int a = inputInt("Write your age: ");
-print("Wow, your age in 10 years is: ", a + 10, "\nYou are LOLY");
+//first - expected error of math after check of logic
+//factorial evaluating
+int x = inputInt("Input x, for evaluating x!\nInput: ");
+while |x < 0| {
+    x = inputInt("Input x, for evaluating x!\nInput: ");
+}
+if (|x == 0| or true) {
+   x = 1;
+}
+elif |x < -1| {
+   print("You entered ", x);
+   x = 1;
+}
+else {
+  x = x + 1;
+}
+int i;
+int result = 1;
+for (i = 2; |i < x|; i = i + 1) {
+    result = result * i;
+}
+print(x, " != ", result);
+
+// playing game
+float $answer   = 12;
+float $ok_error = 100;
+bool to_play = inputBool("Do you want to play a game (yes/no): ");
+float guess;
+float distance;
+flagIf  [
+    #$play_part$: to_play,
+    #$no_games$: true
+]
+#$play_part$: {
+    do {
+        guess     = inputFloat("Input guess real number: ");
+        distance = guess - $answer;
+        flagIf [#negative: | distance < 0 | ] #negative: { distance = -distance; }
+        print("Your guess is ", distance, "units away from answer");
+    } while |distance > $ok_error|;
+    print("You have guessed number: ", $answer);
+    print("Threshold for error was: ", $ok_error);
+    print("Your last answer: ", guess);
+}
+#$no_games$ : {
+    print("Okay, bye-bye -_-");
+}
+
+// try math
+int sub_var = 0;
+int a = 12 + 9 ^ sub_var / 1 * (12 - - -11) + ((-((-(0))))); // junk example
+print("a = ", a);
+// try logic
+int x1 = 12;
+switch x1 {
+	case 12: {
+		print("It’s matched");
+	}
+	case 55: {
+		print("Hit ", x1);
+	}
+	default: {
+		print("Miss");
+		}
+}
+float x2 = 13;
+bool z = true or true;
+print("Result: ", not not not ||x1 < x2| or |x2 > x1| or |x1 == x2| or |x1 != x2| or false == false| or z); // result should be true

@@ -145,8 +145,8 @@ class RPN_out:
             TOKEN_TYPES.OP_EQUAL:        5,
             TOKEN_TYPES.OP_NOT_EQUAL:    5,
 
-            TOKEN_TYPES.BRACKET_R:          6,
-            TOKEN_TYPES.BRACKET_L:          7,
+            TOKEN_TYPES.BRACKET_R:       6,
+            TOKEN_TYPES.BRACKET_L:       7,
 
             TOKEN_TYPES.OP_OUT_STR:   20,
             TOKEN_TYPES.OP_OUT_INT:   20,
@@ -188,7 +188,7 @@ class RPN_out:
         :param token_type: type of the token
         :return: index af added lexeme
         """
-        print(token_type.value, lexeme)
+        # print(token_type.value, lexeme)
         if token_type in TOKEN_TYPES:
             if token_type not in [TOKEN_TYPES.END_STATEMENT, TOKEN_TYPES.CURVE_L, TOKEN_TYPES.CURVE_R]:
                 priority = self.__priority_dict[token_type]
@@ -222,7 +222,6 @@ class RPN_out:
         for i, value in enumerate(self.__RPN_table):
             temp_table.append((i, value))
         lexer_print_table([["№", "postfixCode"]] + temp_table)
-
 
     def write_to_file(self, dir_path: str, file_name: str, var_table: Syntax_var_table, label_table: Label_table) -> None:
         to_write: dict[str, list] = {

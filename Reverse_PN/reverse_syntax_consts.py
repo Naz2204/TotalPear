@@ -97,4 +97,5 @@ class RPN_TYPES(Enum):
     L_VAL = "l-value"
     R_VAL = "r-value"
     LABEL = "label"
+    OP_LABEL_DECLARE = "label_declare"
 
