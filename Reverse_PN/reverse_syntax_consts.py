@@ -70,7 +70,7 @@ class TOKEN_TYPES(Enum):
 
     # RPN tokens
     OP_UMINUS            = "op_uminus",            "uminus"
-    OP_INPUT_INT         = "op_input_in",          "input_in"
+    OP_INPUT_INT         = "op_input_int",          "input_int"
     OP_INPUT_FLOAT       = "op_input_float",       "input_float"
     OP_INPUT_BOOL        = "op_input_bool",        "input_bool"
     OP_OUT_STR           = "op_out_str",           "out_str"
