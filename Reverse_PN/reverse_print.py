@@ -226,7 +226,7 @@ class RPN_out:
             "code": self.__RPN_table
         }
         try:
-            with open(dir_path + "/" + file_name + FILE_TYPE_OUT, "w") as file:
+            with open("Stack_machine" + "/" + file_name + FILE_TYPE_OUT, "w") as file:
                 json.dump(to_write, file, indent=4)
         except:
             print_console("Error -> TP Syntax (Finishing): error occurred while writing code to file",
