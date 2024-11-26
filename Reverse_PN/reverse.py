@@ -1274,7 +1274,8 @@ def main_revers():
     rpn_out = RPN_out(is_verbose)
     syntax = Syntax(syntax_stream, syntax_output, syntax_var_table, label_table, rpn_out)
     syntax.run()
-
+    rpn_out.write_to_file(os.path.dirname(file_path), os.path.basename(file_path).rsplit('.', 1)[0],
+                          syntax_var_table, label_table)
 
 if __name__ == '__main__':
     main_revers()

@@ -20,6 +20,8 @@ class Syntax_var_table:
         except:
             return None
 
+    def get_table(self) -> tuple[tuple[str, str]]:
+        return tuple((i[0], i[1].value) for i in self.__declared_vars.items())
 
 class Label_table:
     def __init__(self):
@@ -43,6 +45,9 @@ class Label_table:
             to_return = self.__table[index][0]
         except IndexError: pass
         return to_return
+
+    def get_table(self) -> list[list[str | int]]:
+        return self.__table
 
     def print(self) ->  None:
         lexer_print_table([["Label name", "Position"]] + self.__table)

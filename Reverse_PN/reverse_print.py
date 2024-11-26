@@ -1,11 +1,10 @@
 import json
-
 from reverse_table import Syntax_var_table, Label_table
-from Syntax_Semant.semantic_syntax_consts import FILE_TYPE_OUT
 from reverse_syntax_consts import CONSOLE_COLORS, KEYWORDS, TOKEN_TYPES, VALUE_TYPES, RPN_TYPES
 from Lexer.lexer_print import print_table as lexer_print_table
 
 FILE_TYPE_OUT = ".postfix"
+
 
 def print_console(message: str, message_type: CONSOLE_COLORS = CONSOLE_COLORS.NORMAL):
     print(message_type.value + message + CONSOLE_COLORS.NORMAL.value)
@@ -179,9 +178,6 @@ class RPN_out:
     def __del__(self):
         self.print_to_console()
 
-    def __buf_to_table(self): pass
-
-
     def add(self, token_type: RPN_TYPES | TOKEN_TYPES | VALUE_TYPES, lexeme: str | None = None) -> int:
         """
         :param lexeme: lexeme to add to RPN table
@@ -225,8 +221,8 @@ class RPN_out:
 
     def write_to_file(self, dir_path: str, file_name: str, var_table: Syntax_var_table, label_table: Label_table) -> None:
         to_write: dict[str, list] = {
-            "var_table": var_table,
-            "label_table": label_table,
+            "var_table": var_table.get_table(),
+            "label_table": label_table.get_table(),
             "code": self.__RPN_table
         }
         try:
