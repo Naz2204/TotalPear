@@ -1,20 +1,21 @@
-//
-// Created by Nazar on 26.11.2024.
-//
-
 #ifndef STACK_H
 #define STACK_H
-#include <string>
-#include <vector>
 
+#include <optional>
+#include <vector>
+#include "reader.h"
 
 class Stack {
-    public:
-        void push (const std::pair<std::string, std::string>&);
-        std::pair<std::string, std::string>& pop();
+public:
+    using code_entry = std::variant<int, std::pair<Reader::Operator, Reader::Multi_type>>;
 
-    private:
-        std::vector<std::pair<std::string, std::string>> stack;
+    Stack ();
+
+    void push (code_entry&& entry);
+    code_entry pop();
+
+private:
+    std::vector<code_entry> m_stack;
 };
 
 #endif //STACK_H

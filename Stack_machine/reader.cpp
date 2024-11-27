@@ -69,9 +69,17 @@ void Reader::fill_tables () {
 
 }
 
-Reader::Multi_type Reader::str_to_multi_type (Reader::Operator type, const std::string&& str) {
-
-    return {12};
+Reader::Multi_type Reader::str_to_multi_type (Reader::Operator type, std::string&& str) {
+    switch (type) {
+        case Operator::INT:
+            return std::stoi(str);
+        case Operator::REAL:
+            return std::stod(str);
+        case Operator::BOOLEAN:
+            return str == "true";
+        default: // string
+            return {std::move(str)};
+    }
 }
 
 Reader::Operator Reader::str_to_op (const std::string& str) {
