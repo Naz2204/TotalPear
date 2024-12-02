@@ -1,7 +1,7 @@
 #ifndef EXECUTOR_H
 #define EXECUTOR_H
 
-#include "reader.h"
+#include "reader_lib/reader.h"
 #include "stack.h"
 
 class Executor {
@@ -28,6 +28,9 @@ private:
 
    void calc_unary    (oprt op);
    void calc_binary   (oprt op);
+
+   //TODO: переглянь, чи так я передаю
+   std::pair<Reader::Operator, std::variant<int, double, bool>> get_rval (Token right_token);
    void label_declare ();
 
    void in     (oprt in_type);
@@ -39,6 +42,7 @@ private:
    Reader& m_reader;
    Stack& m_stack;
    std::map<std::string, std::pair<std::variant<int, double, bool>, oprt>> m_var_table;
+
 
    std::ios_base::fmtflags m_old_cout;
 };

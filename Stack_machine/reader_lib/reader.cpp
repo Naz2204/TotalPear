@@ -1,6 +1,7 @@
 #include "reader.h"
 #include <iostream>
 #include "nlohmann/json.hpp"
+#include <regex>
 
 using json = nlohmann::json;
 
@@ -77,7 +78,12 @@ Reader::Multi_type Reader::str_to_multi_type (Reader::Operator type, std::string
             return std::stod(str);
         case Operator::BOOLEAN:
             return str == "true";
-        default: // string
+        case Operator::STR: {
+            str = std::regex_replace(str, std::regex("\\\\n"), "\n");
+            return {std::move(str)};
+        }
+
+        default: // non-literal viewed as string
             return {std::move(str)};
     }
 }
@@ -100,8 +106,8 @@ Reader::Operator Reader::str_to_op (const std::string& str) {
         {"op_out_float",    Operator::OUT_FLOAT},
         {"op_out_bool",     Operator::OUT_BOOL},
         {"op_jmp",          Operator::JMP},
-        {"op_jt",           Operator::JF},
-        {"op_jf",           Operator::JT},
+        {"op_jf",           Operator::JF},
+        {"op_jt",           Operator::JT},
         {"op_assign",       Operator::ASSIGN},
         {"op_uminus",       Operator::UMINUS},
         {"op_plus",         Operator::PLUS},
@@ -120,7 +126,7 @@ Reader::Operator Reader::str_to_op (const std::string& str) {
         {"op_bigger",       Operator::BIGGER}
     };
     auto result = STR_TO_OP.find(str);
-    if (result == STR_TO_OP.end()) throw std::runtime_error("Fatal error: Internal inconsistency");
+    if (result == STR_TO_OP.end()) throw std::runtime_error("Fatal error: Internal inconsistency (2)");
     return result->second;
 }
 
@@ -128,10 +134,10 @@ Reader::Type Reader::str_to_type (const std::string& str) {
     static const std::map<std::string, Type> STR_TO_TYPE = {
         {"integer", Type::INT},
         {"real",    Type::REAL},
-        {"bool",  Type::BOOLEAN}
+        {"bool",    Type::BOOLEAN}
     };
     auto result = STR_TO_TYPE.find(str);
 
-    if (result == STR_TO_TYPE.end()) throw std::runtime_error("Fatal error: Internal inconsistency");
+    if (result == STR_TO_TYPE.end()) throw std::runtime_error("Fatal error: Internal inconsistency (1)");
     return result->second;
 }
