@@ -1,0 +1,33 @@
+print("===============\n");
+print("Test of parity (v3.0)\n");
+print("===============\n");
+
+int x = inputInt("Input integer: ");
+int div;
+int res;
+
+if |x < 0| {
+    res = -1;
+} else {
+    div = x / 2;
+    res = x - div * 2;
+}
+
+flagIf [
+    #even:    |res == 0|,
+    #odd:     |res == 1|,
+    #one:     |x == 0 + 1|,
+    #bad_res: |res < 0|
+] 
+#even: {
+    print(x, " is even\n");
+}
+#odd: {
+    print(x, " is odd\n");
+}
+#bad_res: {
+    print("That's surprise, your x is negative\n");
+}
+#one: {
+    print("And consider, your x is 1\n");
+}

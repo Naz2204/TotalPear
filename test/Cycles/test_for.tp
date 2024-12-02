@@ -1,0 +1,10 @@
+int i;
+int x;
+for (i = 1; |i < 12|; i = i + 1) {
+    x = 0;
+    while (|x < i|) {
+        print("*");
+        x = x + 1;
+    }
+    print("\n");
+}

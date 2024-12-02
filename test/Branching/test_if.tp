@@ -1,0 +1,13 @@
+print("===============\n");
+print("Test of parity\n");
+print("===============\n");
+
+int x = inputInt("Input integer: ");
+int div = x / 2;
+int res = x - div * 2;
+
+if |res == 0| {
+    print(x, " is even\n");
+} else {
+    print(x, " is odd\n");
+}

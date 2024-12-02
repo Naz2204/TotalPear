@@ -1,0 +1,20 @@
+bool a = true and true;
+print(a, "\n");
+
+bool b = true or false;
+print(b, "\n");
+
+bool c = not true and true;
+print(c, "\n");
+
+bool d = not false and not c;
+print(d, "\n");
+
+bool e = true and true or false;
+print(e, "\n");
+
+bool f = true and (true or not false);
+print(f, "\n");
+
+bool g = not not not not not |2 == 2|;
+print(g, "\n");

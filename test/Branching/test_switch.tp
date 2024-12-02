@@ -1,0 +1,26 @@
+print("===============\n");
+print("Test of parity (v2.0)\n");
+print("===============\n");
+
+int x = inputInt("Input integer: ");
+int div;
+int res;
+
+if |x < 0| {
+    res = -1;
+} else {
+    div = x / 2;
+    res = x - div * 2;
+}
+
+switch res {
+    case 0: {
+        print(x, " is even\n");
+    }
+    case 1: {
+        print(x, " is odd\n");
+    }
+    default: {
+        print("That's surprise, your x is negative\n");
+    }
+}

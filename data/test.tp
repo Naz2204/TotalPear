@@ -1,0 +1,35 @@
+int a = ---2;
+print(a, "\n");
+
+float b = 0.5^--2;
+print(b, "\n");
+
+int c = 2.5 * 2.5;
+print(c, "\n");
+
+float d = -3^2+ 4 * 2 - 5 / 2 + 7;
+print(d, "\n");
+
+int f = 2 + -2;
+print(f, "\n");
+
+int g = 2 + 2;
+print(g, "\n");
+
+int h = -2 + 2;
+print(h, "\n");
+
+int i = -12 * 2 / -12 * 12 / -2 * 12 / -2 * ((((((12))))));
+print(i, "\n");
+ 
+float q = 8.2 + 7 - 3.5; 
+print(q, "\n");
+
+float t = 8 - 3 + 7;
+print(t, "\n");
+
+float y = 5 ^ 5 ^ -1;
+print(y, "\n");
+
+float error = 3 / (2 - 2);
+print(error, "\n");
