@@ -19,14 +19,18 @@ class Syntax_var_table:
             return self.__declared_vars[name]
         except:
             return None
-
+    
     def get_table(self) -> tuple[tuple[str, str]]:
         return tuple((i[0], i[1].value) for i in self.__declared_vars.items())
+
+    def get_table_CIL(self, prefix: str) -> tuple[tuple[str, SEMANTIC_TYPE]]:
+        return tuple((prefix + i[0], i[1]) for i in self.__declared_vars.items())
+
 
 class Label_table:
     def __init__(self):
         self.__table: list[list[str | int]] = [] # [[:label1, 70], [:label2, 16]] - list[str, int]
-        self.__PREFIX: str = ":label"
+        self.__PREFIX: str = "label"
         self.__index: int = 0
         self.__UNDEFINED: int = -1
 

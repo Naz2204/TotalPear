@@ -685,7 +685,7 @@ class Syntax:
             self.__stream.unget(1)
         self.__check_expected_token(TOKEN_TYPES.BRACKET_R)
         self.__code_table.add(token[1], token[0])
-        self.__code_table.add(TOKEN_TYPES.OP_OUT_STR)
+        # self.__code_table.add(TOKEN_TYPES.OP_OUT_STR)
 
 
         # semantic get type

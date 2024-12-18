@@ -18,3 +18,14 @@ print(f, "\n");
 
 bool g = not not not not not |2 == 2|;
 print(g, "\n");
+
+print(|2!=3|);
+print(|2 > 3|);
+print(|2 < 3|);
+print(|2 >= 3|);
+print(|2 >= 2|);
+print(|2 <= 3|);
+print(|2 <= 2|);
+
+print(|true != false|);
+print(|a == false|);

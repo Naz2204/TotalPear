@@ -11,4 +11,6 @@ def run ():
 
 if __name__ == '__main__':
     translator_run()
-    subprocess.run("TotalPear.exe", cwd="StackMachine", shell=True)
+    subprocess.run("ilasm test.il", cwd="Generated", shell=True)
+    subprocess.run("clear", shell=True)
+    subprocess.run("test.exe", cwd="Generated", shell=True)
