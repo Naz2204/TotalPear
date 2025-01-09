@@ -9,64 +9,55 @@
     .locals init (
       int64   _rax_i8,
       float64 _rax_r8,
-      int64 USERVAR_i,
-      int64 USERVAR_x 
+      int64 USERVAR_x,
+      int64 USERVAR_div,
+      int64 USERVAR_res 
     )
 
     .entrypoint
     call void [utils]Utils.Reader::ChangeGlobalization()
+    ldstr "===============\n"
+    call void [mscorlib]System.Console::Write(string)
+    ldstr "Test of parity\n"
+    call void [mscorlib]System.Console::Write(string)
+    ldstr "===============\n"
+    call void [mscorlib]System.Console::Write(string)
+    ldloca USERVAR_x
+    ldstr "Input integer: "
+    call int64 [utils]Utils.Reader::ReadInt(string)
+    stind.i8
+    ldloca USERVAR_div
+    ldloc USERVAR_x
+    ldc.i8 2
+    stloc _rax_i8
+    conv.r8
+    ldloc _rax_i8
+    conv.r8
+    div
+    conv.i8
+    stind.i8
+    ldloca USERVAR_res
+    ldloc USERVAR_x
+    ldloc USERVAR_div
+    ldc.i8 2
+    mul
+    sub
+    stind.i8
+    ldloc USERVAR_res
+    ldc.i8 0
+    ceq
+    brfalse label0
+    ldloc USERVAR_x
+    call void [mscorlib]System.Console::Write(int64)
+    ldstr " is even\n"
+    call void [mscorlib]System.Console::Write(string)
+    br label1
     label0:
     ldloc USERVAR_x
-    ldloc USERVAR_i
-    clt
-    brfalse label1
-    ldstr "*"
+    call void [mscorlib]System.Console::Write(int64)
+    ldstr " is odd\n"
     call void [mscorlib]System.Console::Write(string)
-    ldloca USERVAR_x
-    ldloc USERVAR_x
-    ldc.i8 1
-    add
-    stind.i8
-    br label0
     label1:
-    ldloca USERVAR_i
-    ldc.i8 1
-    stind.i8
-    label2:
-    ldloc USERVAR_i
-    ldc.i8 12
-    clt
-    brfalse label3
-    br label4
-    label5:
-    ldloca USERVAR_i
-    ldloc USERVAR_i
-    ldc.i8 1
-    add
-    stind.i8
-    br label2
-    label4:
-    ldloca USERVAR_x
-    ldc.i8 0
-    stind.i8
-    label6:
-    ldloc USERVAR_x
-    ldloc USERVAR_i
-    clt
-    brfalse label7
-    ldstr "*"
-    call void [mscorlib]System.Console::Write(string)
-    ldloca USERVAR_x
-    ldloc USERVAR_x
-    ldc.i8 1
-    add
-    stind.i8
-    br label6
-    label7:
-    ldstr "\n"
-    call void [mscorlib]System.Console::Write(string)
-    br label5
-    label3:
 
     ret    
   }
